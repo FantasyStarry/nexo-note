@@ -63,8 +63,16 @@ jobs:
         with:
           path: artifacts
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          mv artifacts/nexo-windows-x86_64.exe/nexo.exe release-assets/nexo-windows-x86_64.exe
+          mv artifacts/nexo-linux-x86_64/nexo release-assets/nexo-linux-x86_64
+          mv artifacts/nexo-macos-x86_64/nexo release-assets/nexo-macos-x86_64
+          mv artifacts/nexo-macos-aarch64/nexo release-assets/nexo-macos-aarch64
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: release-assets/*
           generate_release_notes: true
