@@ -1,0 +1,36 @@
+{
+  "name": "nexo-note",
+  "version": "0.1.0",
+  "description": "A local markdown-based notes CLI for your knowledge base",
+  "main": "install.js",
+  "bin": {
+    "nexo": "./bin/nexo",
+    "nn": "./bin/nexo",
+    "nexo-note": "./bin/nexo"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "prepublishOnly": "node -e \"console.log('Publish nexo-note npm wrapper')\""
+  },
+  "keywords": [
+    "notebook",
+    "knowledge-base",
+    "markdown",
+    "cli",
+    "notes"
+  ],
+  "author": "FantasyStarry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FantasyStarry/nexo-note.git"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
+}
