@@ -30,10 +30,18 @@ pub fn run(cli: &Cli, id: &str, editor: Option<String>) -> Result<()> {
     // After editing, update updated_at if the file changed.
     let after = fs::metadata(&path)?.modified()?;
     if after > before {
+        // Re-read the edited .md file and sync back to SQLite.
         let mut note = repo
             .find_note(id)?
             .ok_or_else(|| anyhow!("note '{}' not found after edit", id))?;
         note.frontmatter.touch();
+
+        // Re-parse the file to get the latest content + frontmatter.
+        if let Some(file_note) = crate::storage::repo::parse_note_file(&path)? {
+            note.content = file_note.content;
+            note.frontmatter.title = file_note.frontmatter.title;
+        }
+
         repo.save_note(&note)?;
     }
 

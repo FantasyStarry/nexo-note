@@ -1,23 +1,38 @@
 use crate::models::frontmatter::Frontmatter;
 use crate::models::note::Note;
 use crate::models::tag;
+use crate::storage::db::Database;
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Manages the notes directory and file operations.
+///
+/// SQLite is the **source of truth** for metadata and content.
+/// .md files are synchronized copies for human readability and external editing.
 pub struct Repo {
     pub root: PathBuf,
     pub categories: Vec<String>,
+    db: Database,
 }
 
 impl Repo {
-    /// Open a notes repository at the given path.
-    pub fn new(root: PathBuf, categories: Vec<String>) -> Self {
-        Self { root, categories }
+    /// Open a notes repository at the given path, initializing the database.
+    pub fn new(root: PathBuf, categories: Vec<String>) -> Result<Self> {
+        let db = Database::open(&root)?;
+        Ok(Self {
+            root,
+            categories,
+            db,
+        })
+    }
+
+    /// Get a reference to the underlying database.
+    pub fn database(&self) -> &Database {
+        &self.db
     }
 
     /// Ensure the basic directory structure exists.
@@ -53,11 +68,7 @@ impl Repo {
     /// List history versions for a note.
     #[allow(dead_code)]
     pub fn note_history(&self, id: &str) -> Result<Vec<PathBuf>> {
-        let history_dir = self
-            .root
-            .join(".nexo")
-            .join("history")
-            .join(id);
+        let history_dir = self.root.join(".nexo").join("history").join(id);
         if !history_dir.exists() {
             return Ok(Vec::new());
         }
@@ -87,70 +98,12 @@ impl Repo {
         }
     }
 
-    /// Create a new note in the repository.
-    pub fn create_note(
-        &self,
-        title: &str,
-        category: &str,
-        tags: Vec<String>,
-        source_url: Option<&str>,
-        content: Option<&str>,
-        extra: HashMap<String, String>,
-    ) -> Result<Note> {
-        self.validate_category(category)?;
-
-        let id = self.next_id(category)?;
-        let mut frontmatter = Frontmatter::new(id.clone(), title.to_string(), category.to_string());
-        frontmatter.tags = tags;
-        if let Some(url) = source_url {
-            frontmatter.source_url = url.to_string();
-        }
-
-        // Apply extra frontmatter fields from the whitelist.
-        for (key, value) in extra {
-            match key.as_str() {
-                "status" => frontmatter.status = value,
-                _ => {
-                    // Future extensible fields can be added here.
-                    return Err(anyhow!("unsupported extra field '{}'", key));
-                }
-            }
-        }
-
-        let note = Note::new(frontmatter, content.unwrap_or(""));
-        self.save_note(&note)?;
-        Ok(note)
-    }
-
-    /// Generate the next available ID for a category on today's date.
-    fn next_id(&self, category: &str) -> Result<String> {
-        let today = Local::now().format("%Y%m%d").to_string();
-        let pattern = format!("{}-{}-", category, today);
-        let mut max_seq = 0;
-
-        let notes_dir = self.root.join("notes").join(category);
-        if notes_dir.exists() {
-            for entry in fs::read_dir(&notes_dir)? {
-                let entry = entry?;
-                let name = entry.file_name().to_string_lossy().to_string();
-                if let Some(stem) = name.strip_suffix(".md") {
-                    if let Some(seq_str) = stem.strip_prefix(&pattern) {
-                        if let Ok(seq) = seq_str.parse::<u32>() {
-                            if seq > max_seq {
-                                max_seq = seq;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(format!("{}-{}-{:03}", category, today, max_seq + 1))
-    }
+    // ──────────────────────────────────────
+    // File path helpers (unchanged)
+    // ──────────────────────────────────────
 
     /// Compute the storage path for a note ID.
     pub fn note_path(&self, id: &str) -> PathBuf {
-        // ID format: {category}-{YYYYMMDD}-{seq}
         let parts: Vec<&str> = id.split('-').collect();
         if parts.len() >= 3 {
             let category = parts[0];
@@ -185,8 +138,79 @@ impl Repo {
         }
     }
 
-    /// Save a note to its storage path, creating directories as needed.
+    // ──────────────────────────────────────
+    // CRUD
+    // ──────────────────────────────────────
+
+    /// Create a new note in the repository (SQLite + .md file).
+    pub fn create_note(
+        &self,
+        title: &str,
+        category: &str,
+        tags: Vec<String>,
+        source_url: Option<&str>,
+        content: Option<&str>,
+        extra: HashMap<String, String>,
+    ) -> Result<Note> {
+        self.validate_category(category)?;
+
+        let id = self.db.next_id(category)?;
+        let mut frontmatter = Frontmatter::new(id.clone(), title.to_string(), category.to_string());
+        frontmatter.tags = tags;
+        if let Some(url) = source_url {
+            frontmatter.source_url = url.to_string();
+        }
+
+        for (key, value) in extra {
+            match key.as_str() {
+                "status" => frontmatter.status = value,
+                _ => {
+                    return Err(anyhow!("unsupported extra field '{}'", key));
+                }
+            }
+        }
+
+        let note = Note::new(frontmatter, content.unwrap_or(""));
+
+        // Write to SQLite first (source of truth).
+        self.db.upsert_note(&note)?;
+
+        // Then write the .md file (human-readable copy).
+        self.save_note_file(&note)?;
+
+        Ok(note)
+    }
+
+    /// Find a note by ID. Checks SQLite first, falls back to .md file.
+    pub fn find_note(&self, id: &str) -> Result<Option<Note>> {
+        // Try SQLite first.
+        if let Some(mut note) = self.db.find_note(id)? {
+            self.db.populate_tags(&mut note)?;
+            return Ok(Some(note));
+        }
+
+        // Fallback: try to parse from .md file.
+        let active_path = self.note_path(id);
+        if active_path.exists() {
+            return parse_note_file(&active_path);
+        }
+        let archive_p = self.archive_path(id);
+        if archive_p.exists() {
+            return parse_note_file(&archive_p);
+        }
+
+        Ok(None)
+    }
+
+    /// Save a note to its .md file, creating directories as needed.
     pub fn save_note(&self, note: &Note) -> Result<()> {
+        // Update SQLite.
+        self.db.upsert_note(note)?;
+        // Write .md file.
+        self.save_note_file(note)
+    }
+
+    fn save_note_file(&self, note: &Note) -> Result<()> {
         let path = self.note_path(&note.frontmatter.id);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -196,98 +220,36 @@ impl Repo {
         Ok(())
     }
 
-    /// Find a note by ID, searching both active and archived notes.
-    pub fn find_note(&self, id: &str) -> Result<Option<Note>> {
-        let active_path = self.note_path(id);
-        if active_path.exists() {
-            return parse_note_file(&active_path);
-        }
-        let archive_path = self.archive_path(id);
-        if archive_path.exists() {
-            return parse_note_file(&archive_path);
-        }
-        Ok(None)
-    }
+    // ──────────────────────────────────────
+    // Querying
+    // ──────────────────────────────────────
 
-    /// List all notes, optionally filtered.
+    /// List notes with optional filters, using SQLite.
     pub fn list_notes(&self, filters: &NoteFilters) -> Result<Vec<Note>> {
-        let mut notes = Vec::new();
-        let notes_dir = self.root.join("notes");
-        if !notes_dir.exists() {
-            return Ok(notes);
-        }
-
-        Self::collect_notes(&notes_dir, &mut notes)?;
-
-        // Apply filters
-        if let Some(category) = &filters.category {
-            notes.retain(|n| &n.frontmatter.category == category);
-        }
-        if let Some(tag) = &filters.tag {
-            notes.retain(|n| n.frontmatter.tags.iter().any(|t| t == tag));
-        }
-        if let Some(status) = &filters.status {
-            notes.retain(|n| &n.frontmatter.status == status);
-        }
-        if let Some(since) = &filters.since {
-            notes.retain(|n| n.frontmatter.created_at >= *since);
-        }
-
-        // Sort by created_at descending
-        notes.sort_by(|a, b| b.frontmatter.created_at.cmp(&a.frontmatter.created_at));
-
-        if let Some(limit) = filters.limit {
-            notes.truncate(limit);
-        }
-
+        let mut notes = self.db.list_notes(filters)?;
+        self.db.populate_tags_batch(&mut notes)?;
         Ok(notes)
     }
 
-    fn collect_notes(dir: &Path, notes: &mut Vec<Note>) -> Result<()> {
-        if !dir.exists() {
-            return Ok(());
-        }
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                Self::collect_notes(&path, notes)?;
-            } else if path.extension().and_then(|s| s.to_str()) == Some("md") {
-                if let Some(note) = parse_note_file(&path)? {
-                    notes.push(note);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Search notes by keyword in title, content, or tags.
+    /// Search notes by keyword in title or content, using SQLite.
     pub fn search_notes(&self, keyword: &str, tags: &[String]) -> Result<Vec<Note>> {
-        let filters = NoteFilters::default();
-        let mut notes = self.list_notes(&filters)?;
-        let keyword_lower = keyword.to_lowercase();
-
-    notes.retain(|n| {
-            let title_match = n.frontmatter.title.to_lowercase().contains(&keyword_lower);
-            let content_match = n.content.to_lowercase().contains(&keyword_lower);
-            let tag_match = n.frontmatter.tags.iter().any(|t| t.to_lowercase() == keyword_lower);
-            title_match || content_match || tag_match
-        });
-
-        if !tags.is_empty() {
-            notes.retain(|n| tags.iter().all(|t| n.frontmatter.tags.contains(t)));
-        }
-
+        let mut notes = self.db.search_notes(keyword, tags)?;
+        self.db.populate_tags_batch(&mut notes)?;
         Ok(notes)
     }
 
-    /// Archive a note: move to archive directory and mark status archived.
+    // ──────────────────────────────────────
+    // Archive / Delete
+    // ──────────────────────────────────────
+
+    /// Archive a note: move .md file and update status in SQLite.
     pub fn archive_note(&self, id: &str) -> Result<()> {
         let source = self.note_path(id);
         if !source.exists() {
             return Err(anyhow!("note '{}' not found", id));
         }
 
+        // Migrate to archive dir.
         let target = self.archive_path(id);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
@@ -299,69 +261,73 @@ impl Repo {
 
         fs::write(&target, note.to_string())?;
         fs::remove_file(&source)?;
+
+        // Update SQLite.
+        self.db.upsert_note(&note)?;
+
         Ok(())
     }
 
-    /// Delete a note permanently.
+    /// Delete a note from both SQLite and file system.
     pub fn delete_note(&self, id: &str) -> Result<()> {
+        // Remove from SQLite.
+        self.db.delete_note(id)?;
+
+        // Remove .md file.
         let active_path = self.note_path(id);
         if active_path.exists() {
             fs::remove_file(&active_path)?;
             return Ok(());
         }
-        let archive_path = self.archive_path(id);
-        if archive_path.exists() {
-            fs::remove_file(&archive_path)?;
+        let archive_p = self.archive_path(id);
+        if archive_p.exists() {
+            fs::remove_file(&archive_p)?;
             return Ok(());
         }
         Err(anyhow!("note '{}' not found", id))
     }
 
-    /// Collect all tags across all notes.
+    // ──────────────────────────────────────
+    // Tags
+    // ──────────────────────────────────────
+
+    /// Collect all tags across all notes (from SQLite).
     pub fn all_tags(&self) -> Result<Vec<String>> {
-        let filters = NoteFilters::default();
-        let notes = self.list_notes(&filters)?;
-        let mut tags: HashSet<String> = HashSet::new();
-        for note in notes {
-            for tag in note.frontmatter.tags {
-                tags.insert(tag);
-            }
-        }
-        let mut result: Vec<String> = tags.into_iter().collect();
-        result.sort();
-        Ok(result)
+        self.db.all_tags()
     }
 
-    /// Rename a tag across all notes and return the number of updated notes.
+    /// Rename a tag in SQLite and update all .md files.
     pub fn rename_tag(&self, old: &str, new: &str) -> Result<usize> {
-        let old = tag::normalize(old);
-        let new = tag::normalize(new);
-        if old == new {
+        let old_norm = tag::normalize(old);
+        let new_norm = tag::normalize(new);
+        if old_norm == new_norm {
             return Ok(0);
         }
 
+        // Update SQLite first.
+        let updated = self.db.rename_tag(&old_norm, &new_norm)?;
+        if updated == 0 {
+            return Ok(0);
+        }
+
+        // Now resync all affected .md files.
         let filters = NoteFilters::default();
         let notes = self.list_notes(&filters)?;
-        let mut updated = 0;
-
         for mut note in notes {
             let mut changed = false;
-            for tag in &mut note.frontmatter.tags {
-                if tag == &old {
-                    *tag = new.clone();
+            for t in &mut note.frontmatter.tags {
+                if t == &old_norm {
+                    *t = new_norm.clone();
                     changed = true;
                 }
             }
             if changed {
-                note.frontmatter.touch();
-                self.save_note(&note)?;
-                updated += 1;
+                self.save_note_file(&note)?;
             }
         }
 
         Ok(updated)
     }
-
 }
 
 #[derive(Default)]
@@ -374,7 +340,7 @@ pub struct NoteFilters {
 }
 
 /// Parse a markdown file into a Note, splitting YAML frontmatter from content.
-fn parse_note_file(path: &Path) -> Result<Option<Note>> {
+pub fn parse_note_file(path: &Path) -> Result<Option<Note>> {
     let content = fs::read_to_string(path)?;
     if !content.starts_with("---\n") {
         return Ok(None);

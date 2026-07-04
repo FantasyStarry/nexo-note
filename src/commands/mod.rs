@@ -5,8 +5,11 @@ pub mod create;
 pub mod delete;
 pub mod edit;
 pub mod init;
+pub mod init_mcp;
 pub mod list;
+pub mod migrate;
 pub mod search;
+pub mod serve;
 pub mod stats;
 pub mod tag;
 pub mod view;
@@ -20,7 +23,7 @@ use anyhow::Result;
 pub fn open_repo(cli: &Cli) -> Result<Repo> {
     let config = Config::load()?;
     let notes_dir = config.resolve_notes_dir(cli.notes_dir.as_deref());
-    let repo = Repo::new(notes_dir, config.categories.clone());
+    let repo = Repo::new(notes_dir, config.categories.clone())?;
     repo.init()?;
     Ok(repo)
 }
@@ -80,6 +83,10 @@ pub fn run(cli: Cli) -> Result<()> {
             ConfigCommands::List => config_cmd::list(),
         },
         Commands::Stats => stats::run(&cli),
+        Commands::Migrate => migrate::run(&cli),
         Commands::Completions { shell } => completions::run(&shell),
+        Commands::Serve => serve::run(&cli),
+        Commands::InitMcp(ref args) => init_mcp::run(args),
+        Commands::Doctor => init_mcp::doctor(),
     }
 }

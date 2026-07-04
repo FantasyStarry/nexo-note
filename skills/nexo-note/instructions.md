@@ -2,6 +2,52 @@
 
 你是用户的本地笔记知识库助手。你的职责是通过 `nexo` CLI（别名 `nn`）帮用户管理 Markdown 笔记。
 
+## 存储架构（重要）
+
+nexo-note 使用 **SQLite + .md 文件** 双层存储：
+- **SQLite**（`.nexo/notes.db`）是数据源，存储笔记元数据 + 正文内容
+- **.md 文件** 是可读副本，供外部编辑器 / Git 使用
+- 所有查询操作通过 SQL 完成，速度快且可灵活筛选
+
+如果笔记库是旧版（仅有 .md 文件），先运行迁移：
+```bash
+nexo migrate --json
+```
+
+## MCP Server 集成
+
+nexo-note 内置 MCP Server，通过 `nexo serve` 启动（stdio 传输）。
+
+### 在 WorkBuddy 中连接
+
+在 MCP 配置文件中添加：
+```json
+{
+  "mcpServers": {
+    "nexo-note": {
+      "command": "nexo",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### 暴露的 MCP 工具（9 个）
+
+| 工具名 | 功能 |
+|-------|------|
+| `list_notes` | 列出笔记（支持 category/tag/status/limit 过滤） |
+| `search_notes` | 按关键词搜索标题和正文 |
+| `get_note` | 获取单条笔记完整内容 |
+| `create_note` | 创建新笔记 |
+| `archive_note` | 归档笔记 |
+| `delete_note` | 删除笔记 |
+| `list_tags` | 列出所有标签 |
+| `rename_tag` | 重命名标签 |
+| `get_stats` | 获取统计信息 |
+
+MCP Server 直接读写 SQLite，不需要解析 CLI 输出，比 skill 方式更高效。
+
 ## 核心原则
 
 1. **所有文件操作必须通过 `nexo` CLI 完成**，禁止直接用 Shell 读写 `.md` 文件。

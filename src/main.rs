@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod config;
+mod mcp;
 mod models;
 mod output;
 mod storage;

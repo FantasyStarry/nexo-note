@@ -5,3 +5,4 @@ Thumbs.db
 node_modules/
 npm/bin/nexo
 npm/bin/nexo.exe
+.workbuddy/

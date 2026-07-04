@@ -141,11 +141,39 @@ pub enum Commands {
     /// Show notebook statistics
     Stats,
 
+    /// Migrate existing .md notes from file system into SQLite database
+    Migrate,
+
     /// Generate shell completions
     Completions {
         /// Shell name (bash, zsh, fish, powershell)
         shell: String,
     },
+
+    /// Start MCP server on stdio (for AI agent integration)
+    Serve,
+
+    /// Initialize MCP Server configuration for AI agents
+    InitMcp(InitMcpArgs),
+
+    /// Check MCP Server configuration and diagnose issues
+    Doctor,
+}
+
+/// Arguments for the init-mcp command
+#[derive(Parser, Debug)]
+pub struct InitMcpArgs {
+    /// Configure all detected AI agents
+    #[arg(long)]
+    pub all: bool,
+
+    /// Configure a specific AI agent (workbuddy, claude, cursor, codex, windsurf)
+    #[arg(long)]
+    pub agent: Option<String>,
+
+    /// Also create project-level configuration
+    #[arg(long)]
+    pub project: bool,
 }
 
 #[derive(Subcommand)]

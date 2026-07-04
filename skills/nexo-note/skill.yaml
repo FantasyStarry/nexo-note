@@ -4,6 +4,7 @@ version: 0.1.0
 cli_min_version: "0.1.0"
 commands:
   - nexo init
+  - nexo migrate
   - nexo create
   - nexo edit
   - nexo view
@@ -14,5 +15,6 @@ commands:
   - nexo tag
   - nexo config
   - nexo stats
+  - nexo serve
 aliases:
   - nn
