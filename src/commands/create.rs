@@ -1,7 +1,7 @@
 use crate::cli::Cli;
 use crate::commands::open_repo;
 use crate::models::tag;
-use crate::output::{print, ApiResponse, NoteData};
+use crate::output::{ApiResponse, NoteData, print};
 use crate::storage::git;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -13,18 +13,35 @@ pub fn run(
     category: &str,
     tags: Option<String>,
     source_url: Option<String>,
+    content: Option<String>,
+    content_file: Option<String>,
     extra: Vec<String>,
 ) -> Result<()> {
     let repo = open_repo(cli)?;
 
-    let tag_list = tags
-        .as_deref()
-        .map(tag::parse_tags)
-        .unwrap_or_default();
+    let tag_list = tags.as_deref().map(tag::parse_tags).unwrap_or_default();
+
+    let body = match (content, content_file) {
+        (Some(_), Some(_)) => {
+            return Err(anyhow::anyhow!(
+                "cannot use both --content and --content-file"
+            ));
+        }
+        (Some(text), None) => Some(text),
+        (None, Some(path)) => Some(std::fs::read_to_string(path)?),
+        (None, None) => None,
+    };
 
     let extra_map = parse_extra(extra)?;
 
-    let note = repo.create_note(title, category, tag_list, source_url.as_deref(), extra_map)?;
+    let note = repo.create_note(
+        title,
+        category,
+        tag_list,
+        source_url.as_deref(),
+        body.as_deref(),
+        extra_map,
+    )?;
     let note_id = note.frontmatter.id.clone();
     let path = repo.note_path(&note_id);
 
@@ -37,7 +54,10 @@ pub fn run(
 
     git::commit_all(&repo.root, &format!("feat: create note {}", note_id))?;
 
-    print(&ApiResponse::ok_with_message(data, "笔记创建成功"), cli.json)?;
+    print(
+        &ApiResponse::ok_with_message(data, "笔记创建成功"),
+        cli.json,
+    )?;
     Ok(())
 }
 

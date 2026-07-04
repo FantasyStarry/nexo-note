@@ -94,6 +94,7 @@ impl Repo {
         category: &str,
         tags: Vec<String>,
         source_url: Option<&str>,
+        content: Option<&str>,
         extra: HashMap<String, String>,
     ) -> Result<Note> {
         self.validate_category(category)?;
@@ -116,7 +117,7 @@ impl Repo {
             }
         }
 
-        let note = Note::new(frontmatter, "");
+        let note = Note::new(frontmatter, content.unwrap_or(""));
         self.save_note(&note)?;
         Ok(note)
     }

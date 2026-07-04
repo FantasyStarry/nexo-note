@@ -48,6 +48,14 @@ pub enum Commands {
         #[arg(short, long)]
         source_url: Option<String>,
 
+        /// Note body content (Markdown)
+        #[arg(short = 'b', long)]
+        content: Option<String>,
+
+        /// Path to a file containing the note body (Markdown)
+        #[arg(long, value_name = "PATH")]
+        content_file: Option<String>,
+
         /// Extra frontmatter fields as key=value
         #[arg(short, long)]
         extra: Vec<String>,
