@@ -21,7 +21,7 @@ A local markdown-based notes CLI for your knowledge base. 一个本地 Markdown 
 需要 Node.js。
 
 ```bash
-npm install -g nexo
+npm install -g nexo-note
 ```
 
 ### 方式 2：cargo install
@@ -37,7 +37,7 @@ cargo install --git https://github.com/FantasyStarry/nexo-note
 需要 Node.js。
 
 ```bash
-npx nexo --help
+npx nexo-note --help
 ```
 
 ### 方式 4：GitHub Release

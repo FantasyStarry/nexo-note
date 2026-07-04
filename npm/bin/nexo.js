@@ -3,13 +3,14 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const binDir = __dirname;
+// Find the package root directory
+const packageRoot = path.resolve(__dirname, '..');
 const binaryName = process.platform === 'win32' ? 'nexo.exe' : 'nexo';
-const binaryPath = path.join(binDir, binaryName);
+const binaryPath = path.join(packageRoot, 'bin', binaryName);
 
 if (!fs.existsSync(binaryPath)) {
   console.error(`Binary not found: ${binaryPath}`);
-  console.error('Please run: npm install nexo-note');
+  console.error('Please reinstall: npm install -g nexo-note');
   process.exit(1);
 }
 

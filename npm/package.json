@@ -1,6 +1,6 @@
 {
   "name": "nexo-note",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A local markdown-based notes CLI for your knowledge base",
   "main": "install.js",
   "bin": {
