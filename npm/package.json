@@ -4,9 +4,9 @@
   "description": "A local markdown-based notes CLI for your knowledge base",
   "main": "install.js",
   "bin": {
-    "nexo": "bin/nexo",
-    "nn": "bin/nexo",
-    "nexo-note": "bin/nexo"
+    "nexo": "bin/nexo.js",
+    "nn": "bin/nexo.js",
+    "nexo-note": "bin/nexo.js"
   },
   "scripts": {
     "postinstall": "node install.js",
@@ -26,7 +26,7 @@
     "url": "git+https://github.com/FantasyStarry/nexo-note.git"
   },
   "files": [
-    "bin/",
+    "bin/nexo.js",
     "install.js",
     "README.md"
   ],

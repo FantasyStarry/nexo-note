@@ -1,0 +1,4 @@
+# The actual platform-specific binary is downloaded by install.js during postinstall.
+# Do not ship any pre-downloaded binary in the npm tarball.
+bin/nexo
+bin/nexo.exe
