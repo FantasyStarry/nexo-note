@@ -101,6 +101,8 @@ pub struct CreateNoteParams {
     pub source_url: Option<String>,
     /// Markdown content of the note
     pub content: Option<String>,
+    /// Optional parent note ID to create a chain (thread)
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -198,12 +200,15 @@ impl NexoServer {
 
     #[tool(
         description = "Create a new note. Requires title and category. \
-        Optionally provide tags, source_url, and markdown content. \
+        Optionally provide tags, source_url, markdown content, and parent_id for chaining. \
         Returns the created note's ID and metadata."
     )]
     fn create_note(&self, Parameters(params): Parameters<CreateNoteParams>) -> String {
         let repo = self.repo.lock().unwrap_or_else(|e| e.into_inner());
-        let extra = std::collections::HashMap::new();
+        let mut extra = std::collections::HashMap::new();
+        if let Some(pid) = &params.parent_id {
+            extra.insert("parent_id".to_string(), pid.clone());
+        }
         match repo.create_note(
             &params.title,
             &params.category,
@@ -289,6 +294,35 @@ impl NexoServer {
             Err(e) => err(e),
         }
     }
+
+    #[tool(
+        description = "Get the full thread chain for a note by ID. \
+        Walks up the parent chain to find the root, then lists all descendants. \
+        Returns an ordered array of notes showing the thread hierarchy."
+    )]
+    fn get_thread(&self, Parameters(params): Parameters<NoteIdParams>) -> String {
+        let repo = self.repo.lock().unwrap_or_else(|e| e.into_inner());
+        match repo.get_thread(&params.id) {
+            Ok(notes) => {
+                let items: Vec<serde_json::Value> = notes
+                    .iter()
+                    .map(|n| {
+                        serde_json::json!({
+                            "id": n.frontmatter.id,
+                            "title": n.frontmatter.title,
+                            "category": n.frontmatter.category,
+                            "status": n.frontmatter.status,
+                            "tags": n.frontmatter.tags,
+                            "parent_id": n.frontmatter.parent_id,
+                            "created_at": n.frontmatter.created_at.to_rfc3339(),
+                        })
+                    })
+                    .collect();
+                ok(&serde_json::json!({ "notes": items, "total": items.len() }))
+            }
+            Err(e) => err(e),
+        }
+    }
 }
 
 // ──────────────────────────────────────
@@ -302,7 +336,8 @@ impl ServerHandler for NexoServer {
             instructions: Some(
                 "nexo-note: A local markdown-based notes knowledge base. \
                 Use list_notes to browse, search_notes to find by keyword, \
-                get_note to read full content, create_note to add new notes."
+                get_note to read full content, create_note to add new notes, \
+                get_thread to view the full thread chain for a note."
                     .into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),

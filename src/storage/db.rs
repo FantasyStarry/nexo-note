@@ -411,17 +411,11 @@ impl Database {
     pub fn get_thread(&self, id: &str) -> Result<Vec<Note>> {
         // Build the ancestor chain: walk from id up to root.
         let mut ancestors: Vec<Note> = Vec::new();
-        let mut current_id: Option<String> = Some(id.to_string());
-        while let Some(cid) = current_id {
-            if let Some(note) = self.find_note(&cid)? {
-                current_id = note.frontmatter.parent_id.clone();
-                if current_id.is_some() {
-                    ancestors.push(note);
-                } else {
-                    // This is the root - we'll re-add it below
-                    ancestors.push(note);
-                    break;
-                }
+        let mut current_parent: Option<String> = self.parent_id(id)?;
+        while let Some(pid) = current_parent {
+            if let Some(note) = self.find_note(&pid)? {
+                current_parent = note.frontmatter.parent_id.clone();
+                ancestors.push(note);
             } else {
                 break;
             }
