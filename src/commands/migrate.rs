@@ -130,6 +130,11 @@ fn parse_and_import(
     let note = crate::models::note::Note::new(frontmatter, body);
 
     repo.database().upsert_note(&note)?;
+
+    // Rewrite the file as content-only. Metadata now lives in SQLite.
+    std::fs::write(path, &note.content)
+        .with_context(|| format!("failed to rewrite {:?} as content-only", path))?;
+
     Ok(true)
 }
 

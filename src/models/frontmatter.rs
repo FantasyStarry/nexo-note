@@ -1,7 +1,7 @@
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 
-/// Frontmatter metadata stored at the top of each note file.
+/// Metadata for a note. SQLite is the source of truth.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Frontmatter {
     pub id: String,
@@ -13,6 +13,8 @@ pub struct Frontmatter {
     pub status: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub source_url: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub file_path: String,
     pub created_at: DateTime<FixedOffset>,
     pub updated_at: DateTime<FixedOffset>,
 }
@@ -32,6 +34,7 @@ impl Frontmatter {
             tags: Vec::new(),
             status: default_status(),
             source_url: String::new(),
+            file_path: String::new(),
             created_at: now,
             updated_at: now,
         }

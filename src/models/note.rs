@@ -19,7 +19,7 @@ impl Note {
 
 impl std::fmt::Display for Note {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let yaml = serde_yaml::to_string(&self.frontmatter).unwrap_or_default();
-        write!(f, "---\n{}---\n\n{}", yaml, self.content)
+        // SQLite is the source of truth for metadata. .md files only store content.
+        write!(f, "{}", self.content)
     }
 }

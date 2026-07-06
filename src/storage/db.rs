@@ -5,7 +5,7 @@ use crate::output::{CategoryCount, StatsData, StatusCount, TagCount};
 use crate::storage::repo::NoteFilters;
 use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset, Local};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, OptionalExtension, params};
 
 /// SQLite-backed database for note metadata and content.
 ///
@@ -43,6 +43,7 @@ impl Database {
                 status     TEXT NOT NULL DEFAULT 'active',
                 content    TEXT NOT NULL DEFAULT '',
                 source_url TEXT NOT NULL DEFAULT '',
+                file_path  TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -66,6 +67,23 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_nt_tag_id      ON note_tags(tag_id);
             ",
         )?;
+
+        // Migrate existing databases that were created before the file_path column.
+        let has_file_path: bool = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM pragma_table_info('notes') WHERE name = 'file_path'",
+                [],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        if !has_file_path {
+            self.conn.execute(
+                "ALTER TABLE notes ADD COLUMN file_path TEXT NOT NULL DEFAULT ''",
+                [],
+            )?;
+        }
+
         Ok(())
     }
 
@@ -81,14 +99,15 @@ impl Database {
 
         // Upsert the note row.
         self.conn.execute(
-            "INSERT INTO notes (id, title, category, status, content, source_url, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "INSERT INTO notes (id, title, category, status, content, source_url, file_path, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
              ON CONFLICT(id) DO UPDATE SET
                 title      = excluded.title,
                 category   = excluded.category,
                 status     = excluded.status,
                 content    = excluded.content,
                 source_url = excluded.source_url,
+                file_path  = excluded.file_path,
                 updated_at = excluded.updated_at",
             params![
                 fm.id,
@@ -97,13 +116,15 @@ impl Database {
                 fm.status,
                 note.content,
                 fm.source_url,
+                fm.file_path,
                 fm.created_at.to_rfc3339(),
                 fm.updated_at.to_rfc3339(),
             ],
         )?;
 
         // Sync tags: delete old, insert new.
-        self.conn.execute("DELETE FROM note_tags WHERE note_id = ?1", params![fm.id])?;
+        self.conn
+            .execute("DELETE FROM note_tags WHERE note_id = ?1", params![fm.id])?;
 
         for t in fm_tags {
             let normalized = tag::normalize(t);
@@ -112,11 +133,11 @@ impl Database {
                 "INSERT INTO tags (name) VALUES (?1) ON CONFLICT(name) DO NOTHING",
                 params![normalized],
             )?;
-            let tag_id: i64 = self
-                .conn
-                .query_row("SELECT id FROM tags WHERE name = ?1", params![normalized], |row| {
-                    row.get(0)
-                })?;
+            let tag_id: i64 = self.conn.query_row(
+                "SELECT id FROM tags WHERE name = ?1",
+                params![normalized],
+                |row| row.get(0),
+            )?;
             self.conn.execute(
                 "INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?1, ?2)",
                 params![fm.id, tag_id],
@@ -187,7 +208,7 @@ impl Database {
     /// Find a single note by ID.
     pub fn find_note(&self, id: &str) -> Result<Option<Note>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, title, category, status, content, source_url, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
              FROM notes WHERE id = ?1",
         )?;
 
@@ -234,7 +255,7 @@ impl Database {
         let order = "ORDER BY created_at DESC";
 
         let mut sql = format!(
-            "SELECT id, title, category, status, content, source_url, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
              FROM notes WHERE {} {}",
             where_clause, order
         );
@@ -245,7 +266,8 @@ impl Database {
         }
 
         let mut stmt = self.conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let notes = stmt
             .query_map(params_refs.as_slice(), Self::row_to_note)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -257,7 +279,10 @@ impl Database {
     /// Searches all notes (including archived) unless overridden via NoteFilters.
     pub fn search_notes(&self, keyword: &str, tag_names: &[String]) -> Result<Vec<Note>> {
         let kw = format!("%{}%", keyword);
-        let mut conditions = vec!["1=1".to_string(), "(title LIKE ?1 OR content LIKE ?1)".to_string()];
+        let mut conditions = vec![
+            "1=1".to_string(),
+            "(title LIKE ?1 OR content LIKE ?1)".to_string(),
+        ];
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(kw)];
 
         if !tag_names.is_empty() {
@@ -278,13 +303,14 @@ impl Database {
 
         let where_clause = conditions.join(" AND ");
         let sql = format!(
-            "SELECT id, title, category, status, content, source_url, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
              FROM notes WHERE {} ORDER BY created_at DESC",
             where_clause
         );
 
         let mut stmt = self.conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let notes = stmt
             .query_map(params_refs.as_slice(), Self::row_to_note)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -292,14 +318,27 @@ impl Database {
         Ok(notes)
     }
 
+    /// Get the stored relative file path for a note, if any.
+    pub fn file_path(&self, id: &str) -> Result<Option<String>> {
+        let path: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT file_path FROM notes WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(path.filter(|p| !p.is_empty()))
+    }
+
     /// Check whether a note exists by ID.
     #[allow(dead_code)]
     pub fn note_exists(&self, id: &str) -> Result<bool> {
-        let count: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM notes WHERE id = ?1", params![id], |row| {
-                row.get(0)
-            })?;
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM notes WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )?;
         Ok(count > 0)
     }
 
@@ -338,11 +377,11 @@ impl Database {
             params![new],
         )?;
 
-        let new_id: i64 = self
-            .conn
-            .query_row("SELECT id FROM tags WHERE name = ?1", params![new], |row| {
-                row.get(0)
-            })?;
+        let new_id: i64 =
+            self.conn
+                .query_row("SELECT id FROM tags WHERE name = ?1", params![new], |row| {
+                    row.get(0)
+                })?;
 
         // Count affected notes before updating.
         let count: i64 = self.conn.query_row(
@@ -379,7 +418,6 @@ impl Database {
     // ──────────────────────────────────────
 
     /// Compute notebook statistics via a single query.
-    #[allow(dead_code)]
     pub fn stats(&self) -> Result<StatsData> {
         let total_notes: usize = self.note_count()?;
 
@@ -405,9 +443,9 @@ impl Database {
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
         // By status.
-        let mut stmt = self.conn.prepare(
-            "SELECT status, COUNT(*) FROM notes GROUP BY status",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT status, COUNT(*) FROM notes GROUP BY status")?;
         let mut status_count = StatusCount::default();
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
@@ -472,8 +510,9 @@ impl Database {
         let status: String = row.get(3)?;
         let content: String = row.get(4)?;
         let source_url: String = row.get(5)?;
-        let created_at_str: String = row.get(6)?;
-        let updated_at_str: String = row.get(7)?;
+        let file_path: String = row.get(6)?;
+        let created_at_str: String = row.get(7)?;
+        let updated_at_str: String = row.get(8)?;
 
         let parse_dt = |s: &str| -> DateTime<FixedOffset> {
             DateTime::parse_from_rfc3339(s)
@@ -482,8 +521,10 @@ impl Database {
                         .map(|dt| dt.and_utc().fixed_offset())
                 })
                 .or_else(|_| {
-                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
-                        .map(|dt| dt.and_local_timezone(FixedOffset::east_opt(0).unwrap()).unwrap())
+                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").map(|dt| {
+                        dt.and_local_timezone(FixedOffset::east_opt(0).unwrap())
+                            .unwrap()
+                    })
                 })
                 .unwrap_or_else(|_| Local::now().fixed_offset())
         };
@@ -495,6 +536,7 @@ impl Database {
             tags: Vec::new(), // loaded below
             status,
             source_url,
+            file_path,
             created_at: parse_dt(&created_at_str),
             updated_at: parse_dt(&updated_at_str),
         };
@@ -539,15 +581,14 @@ impl Database {
         );
 
         let mut stmt = self.conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            ids.iter().map(|id| id as &dyn rusqlite::types::ToSql).collect();
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> = ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::types::ToSql)
+            .collect();
 
         let mut tag_map: HashMap<String, Vec<String>> = HashMap::new();
         let rows = stmt.query_map(params_refs.as_slice(), |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-            ))
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
         for row in rows {
             let (note_id, tag_name) = row?;

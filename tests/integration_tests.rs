@@ -76,17 +76,17 @@ fn test_create_and_view() {
             "--json",
         ],
     );
-    assert!(success, "create failed: stdout={} stderr={}", stdout, stderr);
+    assert!(
+        success,
+        "create failed: stdout={} stderr={}",
+        stdout, stderr
+    );
     assert!(stdout.contains("issues-"));
 
     let id = extract_id(&stdout);
 
     let (stdout, stderr, success) = run(&repo, &["view", &id, "--json"]);
-    assert!(
-        success,
-        "view failed: stdout={} stderr={}",
-        stdout, stderr
-    );
+    assert!(success, "view failed: stdout={} stderr={}", stdout, stderr);
     assert!(stdout.contains("Integration Test Note"));
 }
 
@@ -95,14 +95,7 @@ fn test_list_and_search() {
     let repo = setup_repo();
     run(
         &repo,
-        &[
-            "create",
-            "Searchable Note",
-            "-c",
-            "articles",
-            "-t",
-            "rust",
-        ],
+        &["create", "Searchable Note", "-c", "articles", "-t", "rust"],
     );
 
     let (stdout, stderr, success) = run(&repo, &["ls", "--json"]);
@@ -133,4 +126,71 @@ fn test_archive() {
     let (stdout, _, success) = run(&repo, &["ls", "--json"]);
     assert!(success);
     assert!(!stdout.contains(&id));
+}
+
+#[test]
+fn test_content_only_format() {
+    let repo = setup_repo();
+    let content = "This is the markdown body.\n\n- item 1\n- item 2";
+    let (stdout, stderr, success) = run(
+        &repo,
+        &[
+            "create",
+            "Content Only Note",
+            "-c",
+            "articles",
+            "--content",
+            content,
+            "--json",
+        ],
+    );
+    assert!(
+        success,
+        "create failed: stdout={} stderr={}",
+        stdout, stderr
+    );
+
+    let id = extract_id(&stdout);
+    let path = repo
+        .join("notes")
+        .join("articles")
+        .join("2026")
+        .join("07")
+        .join(format!("{}.md", id));
+
+    let file_content = fs::read_to_string(&path).expect("failed to read note file");
+    assert!(
+        !file_content.starts_with("---\n"),
+        "content-only note should not start with YAML frontmatter"
+    );
+    assert!(
+        file_content.contains(content),
+        "note file should contain the provided content"
+    );
+}
+
+#[test]
+fn test_stats_uses_database() {
+    let repo = setup_repo();
+    run(
+        &repo,
+        &[
+            "create",
+            "Stats Note One",
+            "-c",
+            "issues",
+            "-t",
+            "rust,debug",
+        ],
+    );
+    run(
+        &repo,
+        &["create", "Stats Note Two", "-c", "articles", "-t", "rust"],
+    );
+
+    let (stdout, stderr, success) = run(&repo, &["stats", "--json"]);
+    assert!(success, "stats failed: stdout={} stderr={}", stdout, stderr);
+    assert!(stdout.contains("\"total_notes\": 2"));
+    assert!(stdout.contains("\"total_tags\": 2"));
+    assert!(stdout.contains("rust"));
 }

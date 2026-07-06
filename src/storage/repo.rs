@@ -2,7 +2,7 @@ use crate::models::frontmatter::Frontmatter;
 use crate::models::note::Note;
 use crate::models::tag;
 use crate::storage::db::Database;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::Local;
 
 use std::collections::HashMap;
@@ -52,11 +52,7 @@ impl Repo {
         }
 
         let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
-        let backup_dir = self
-            .root
-            .join(".nexo")
-            .join("history")
-            .join(id);
+        let backup_dir = self.root.join(".nexo").join("history").join(id);
         fs::create_dir_all(&backup_dir)?;
 
         let backup_path = backup_dir.join(format!("{}.md", timestamp));
@@ -102,8 +98,10 @@ impl Repo {
     // File path helpers (unchanged)
     // ──────────────────────────────────────
 
-    /// Compute the storage path for a note ID.
-    pub fn note_path(&self, id: &str) -> PathBuf {
+    /// Compute the default storage path for a note ID.
+    ///
+    /// Uses the deterministic `{category}/{YYYY}/{MM}/{id}.md` layout.
+    fn default_note_path(&self, id: &str) -> PathBuf {
         let parts: Vec<&str> = id.split('-').collect();
         if parts.len() >= 3 {
             let category = parts[0];
@@ -118,6 +116,17 @@ impl Repo {
         } else {
             self.root.join("notes").join(format!("{}.md", id))
         }
+    }
+
+    /// Compute the storage path for a note ID.
+    ///
+    /// If the database stores a relative file_path, use it. Otherwise fall back
+    /// to the deterministic `{category}/{YYYY}/{MM}/{id}.md` layout.
+    pub fn note_path(&self, id: &str) -> PathBuf {
+        if let Ok(Some(rel)) = self.db.file_path(id) {
+            return self.root.join(rel);
+        }
+        self.default_note_path(id)
     }
 
     /// Compute the archive path for a note ID.
@@ -170,7 +179,12 @@ impl Repo {
             }
         }
 
-        let note = Note::new(frontmatter, content.unwrap_or(""));
+        let mut note = Note::new(frontmatter, content.unwrap_or(""));
+
+        // Compute the deterministic relative path and store it in metadata.
+        let path = self.default_note_path(&note.frontmatter.id);
+        let rel = path.strip_prefix(&self.root).unwrap_or(&path);
+        note.frontmatter.file_path = rel.to_string_lossy().to_string();
 
         // Write to SQLite first (source of truth).
         self.db.upsert_note(&note)?;
@@ -249,15 +263,16 @@ impl Repo {
             return Err(anyhow!("note '{}' not found", id));
         }
 
-        // Migrate to archive dir.
+        // Load from SQLite (source of truth), update status, and write the
+        // content-only file to the archive directory.
+        let mut note = self.find_note(id)?.context("note not found")?;
+        note.frontmatter.status = "archived".to_string();
+        note.frontmatter.touch();
+
         let target = self.archive_path(id);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
         }
-
-        let mut note = parse_note_file(&source)?.context("note not found")?;
-        note.frontmatter.status = "archived".to_string();
-        note.frontmatter.touch();
 
         fs::write(&target, note.to_string())?;
         fs::remove_file(&source)?;
