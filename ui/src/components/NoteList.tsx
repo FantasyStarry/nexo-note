@@ -48,10 +48,10 @@ export default function NoteList({
           href={`/notes/${note.id}`}
           className={`block mb-2 rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
             activeId === note.id
-              ? 'border-primary/40 bg-accent shadow-sm'
-              : 'border-border/50 bg-card hover:border-border/80'
+              ? 'border-l-4 border-primary/60 bg-blue-50/80 shadow-sm'
+              : 'border-l border-border/50 bg-card hover:border-border/80'
           }`}
-          style={{ borderLeftWidth: activeId === note.id ? '3px' : '0.5px' }}
+          style={{ borderLeftColor: activeId === note.id ? 'var(--color-primary-500)' : undefined }}
         >
           {/* Category & Tags */}
           <div className="flex items-center gap-2 mb-2">
@@ -69,7 +69,7 @@ export default function NoteList({
           </div>
 
           {/* Title */}
-          <h3 className={`text-sm font-medium mb-1 line-clamp-2 ${activeId === note.id ? 'text-foreground' : 'text-foreground/90'}`}>
+          <h3 className={`text-sm font-semibold mb-1 line-clamp-2 ${activeId === note.id ? 'text-primary' : 'text-foreground/90'}`}>
             {note.title}
           </h3>
 
