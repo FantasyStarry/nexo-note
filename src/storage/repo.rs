@@ -9,6 +9,115 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Maximum characters in a slugified filename (excluding .md extension).
+const SLUG_MAX_CHARS: usize = 80;
+
+/// Slugify a title into a human-readable filename.
+///
+/// Rules:
+/// - Lowercase
+/// - Replace non-alphanumeric/non-CJK characters with hyphens
+/// - Collapse multiple hyphens
+/// - Trim leading/trailing hyphens
+/// - Truncate to SLUG_MAX_CHARS
+/// - If the result is empty, fall back to a short random string
+fn slugify_title(title: &str) -> String {
+    let slug: String = title
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_ascii_whitespace() {
+                c.to_ascii_lowercase()
+            } else if c as u32 >= 0x4E00 && c as u32 <= 0x9FFF {
+                // Keep CJK characters as-is
+                c
+            } else if c as u32 >= 0x3000 && c as u32 <= 0x303F {
+                // CJK punctuation → hyphen
+                '-'
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join("-");
+
+    // Collapse multiple hyphens and trim
+    let slug: String = {
+        let mut result = String::with_capacity(slug.len());
+        let mut prev_hyphen = false;
+        for c in slug.chars() {
+            if c == '-' {
+                if !prev_hyphen {
+                    result.push('-');
+                }
+                prev_hyphen = true;
+            } else {
+                result.push(c);
+                prev_hyphen = false;
+            }
+        }
+        result.trim_matches('-').to_string()
+    };
+
+    // Truncate
+    let slug = if slug.len() > SLUG_MAX_CHARS {
+        slug[..SLUG_MAX_CHARS].trim_end_matches('-').to_string()
+    } else {
+        slug
+    };
+
+    // Fallback if empty
+    if slug.is_empty() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        format!("note-{}", ts % 100_000)
+    } else {
+        slug
+    }
+}
+
+/// Ensure the slug is unique within the category by appending a counter if needed.
+fn unique_slug_in_category(db: &Database, category: &str, base_slug: &str) -> Result<String> {
+    let now = chrono::Local::now();
+    let year = now.format("%Y");
+    let month = now.format("%m");
+    let pattern = format!("notes/{}/{}/{}/{}", category, year, month, base_slug);
+
+    // Check if this slug is already taken
+    let exists: bool = db
+        .slug_exists(&pattern)
+        .unwrap_or(false);
+
+    if !exists {
+        return Ok(base_slug.to_string());
+    }
+
+    // Try base_slug-2, base_slug-3, etc.
+    for counter in 2..1000 {
+        let candidate = format!("{}-{}", base_slug, counter);
+        let candidate_pattern = format!(
+            "notes/{}/{}/{}/{}",
+            category, year, month, &candidate
+        );
+        let taken: bool = db.slug_exists(&candidate_pattern).unwrap_or(false);
+        if !taken {
+            return Ok(candidate);
+        }
+    }
+
+    // Extreme fallback: add timestamp
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    Ok(format!("{}-{}", base_slug, ts % 100_000))
+}
+
 /// Manages the notes directory and file operations.
 ///
 /// SQLite is the **source of truth** for metadata and content.
@@ -130,7 +239,18 @@ impl Repo {
     }
 
     /// Compute the archive path for a note ID.
+    ///
+    /// Uses the stored file_path from SQLite (replacing `notes/` with `archive/`),
+    /// or falls back to the deterministic `archive/{category}/{YYYY}/{MM}/{id}.md`.
     fn archive_path(&self, id: &str) -> PathBuf {
+        // Prefer the stored file_path from DB.
+        if let Ok(Some(rel)) = self.db.file_path(id) {
+            // Replace the leading "notes/" with "archive/"
+            if let Some(archive_rel) = rel.strip_prefix("notes/") {
+                return self.root.join("archive").join(archive_rel);
+            }
+        }
+        // Fallback: deterministic path from ID.
         let parts: Vec<&str> = id.split('-').collect();
         if parts.len() >= 3 {
             let category = parts[0];
@@ -181,10 +301,19 @@ impl Repo {
 
         let mut note = Note::new(frontmatter, content.unwrap_or(""));
 
-        // Compute the deterministic relative path and store it in metadata.
-        let path = self.default_note_path(&note.frontmatter.id);
-        let rel = path.strip_prefix(&self.root).unwrap_or(&path);
-        note.frontmatter.file_path = rel.to_string_lossy().to_string();
+        // Generate a human-readable filename from the title.
+        // Format: notes/{category}/{YYYY}/{MM}/{slug}.md
+        let base_slug = slugify_title(title);
+        let unique_slug = unique_slug_in_category(&self.db, category, &base_slug)?;
+        let now = chrono::Local::now();
+        let rel_path = format!(
+            "notes/{}/{}/{}/{}.md",
+            category,
+            now.format("%Y"),
+            now.format("%m"),
+            unique_slug
+        );
+        note.frontmatter.file_path = rel_path;
 
         // Write to SQLite first (source of truth).
         self.db.upsert_note(&note)?;

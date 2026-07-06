@@ -61,6 +61,15 @@ fn extract_id(stdout: &str) -> String {
         .to_string()
 }
 
+fn extract_path(stdout: &str) -> String {
+    stdout
+        .lines()
+        .find(|l| l.contains("\"path\""))
+        .and_then(|l| l.split('"').nth(3))
+        .expect("failed to extract note path")
+        .to_string()
+}
+
 #[test]
 fn test_create_and_view() {
     let repo = setup_repo();
@@ -151,14 +160,10 @@ fn test_content_only_format() {
     );
 
     let id = extract_id(&stdout);
-    let path = repo
-        .join("notes")
-        .join("articles")
-        .join("2026")
-        .join("07")
-        .join(format!("{}.md", id));
+    let note_path = extract_path(&stdout);
 
-    let file_content = fs::read_to_string(&path).expect("failed to read note file");
+    let _id = extract_id(&stdout);
+    let file_content = fs::read_to_string(&note_path).expect("failed to read note file");
     assert!(
         !file_content.starts_with("---\n"),
         "content-only note should not start with YAML frontmatter"
@@ -166,6 +171,34 @@ fn test_content_only_format() {
     assert!(
         file_content.contains(content),
         "note file should contain the provided content"
+    );
+}
+
+#[test]
+fn test_readable_filename() {
+    let repo = setup_repo();
+    let (stdout, stderr, success) = run(
+        &repo,
+        &["create", "My Readable File Name Test", "-c", "articles", "--json"],
+    );
+    assert!(success, "create failed: stdout={} stderr={}", stdout, stderr);
+
+    let note_path = extract_path(&stdout);
+    let filename = std::path::Path::new(&note_path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+
+    assert!(
+        filename.contains("my-readable-file-name-test"),
+        "filename should be human-readable (slugified from title), got: {}",
+        filename
+    );
+    assert!(
+        !filename.contains("articles-"),
+        "filename should not contain the ID-based prefix, got: {}",
+        filename
     );
 }
 

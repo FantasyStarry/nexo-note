@@ -331,6 +331,20 @@ impl Database {
         Ok(path.filter(|p| !p.is_empty()))
     }
 
+    /// Check whether a file path pattern already exists in the database.
+    ///
+    /// Used to ensure unique slug-based filenames. The `path_pattern` is matched
+    /// against the `file_path` column using SQL LIKE (with `%` appended).
+    pub fn slug_exists(&self, path_pattern: &str) -> Result<bool> {
+        let like = format!("{}%", path_pattern);
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM notes WHERE file_path LIKE ?1",
+            params![like],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
     /// Check whether a note exists by ID.
     #[allow(dead_code)]
     pub fn note_exists(&self, id: &str) -> Result<bool> {
