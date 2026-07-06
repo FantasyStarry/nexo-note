@@ -23,7 +23,10 @@ pub fn init_repo(path: &Path) -> Result<()> {
     // Create an initial .gitignore to ignore local metadata if needed.
     let gitignore = path.join(".gitignore");
     if !gitignore.exists() {
-        std::fs::write(&gitignore, ".nexo/history/\n")?;
+        std::fs::write(
+            &gitignore,
+            ".nexo/history/\n.nexo/*.db*\n",
+        )?;
     }
     Ok(())
 }
