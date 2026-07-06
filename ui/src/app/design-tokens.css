@@ -1,0 +1,381 @@
+/* ========================================
+   nexo-note Design Tokens
+   Version: 1.0
+   Designer: 像素君 (UI Designer)
+   ======================================== */
+
+:root {
+  /* ========================================
+     Color System
+     ======================================== */
+  
+  /* Primary - Blue */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  /* Secondary - Gray */
+  --color-secondary-50: #f9fafb;
+  --color-secondary-100: #f3f4f6;
+  --color-secondary-200: #e5e7eb;
+  --color-secondary-300: #d1d5db;
+  --color-secondary-400: #9ca3af;
+  --color-secondary-500: #6b7280;
+  --color-secondary-600: #4b5563;
+  --color-secondary-700: #374151;
+  --color-secondary-800: #1f2937;
+  --color-secondary-900: #111827;
+  
+  /* Semantic Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* Background */
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f9fafb;
+  --color-background-tertiary: #f3f4f6;
+  
+  /* Text */
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+  
+  /* Border */
+  --color-border-tertiary: rgba(0, 0, 0, 0.08);
+  --color-border-secondary: rgba(0, 0, 0, 0.15);
+  --color-border-primary: rgba(59, 130, 246, 0.4);
+  --color-border-info: rgba(59, 130, 246, 0.4);
+  --color-border-success: rgba(16, 185, 129, 0.4);
+  --color-border-warning: rgba(245, 158, 11, 0.4);
+  --color-border-danger: rgba(239, 68, 68, 0.4);
+  
+  /* Category Colors */
+  --color-articles: #3b82f6;
+  --color-issues: #f59e0b;
+  --color-ideas: #a855f7;
+  --color-projects: #22c55e;
+  --color-journal: #ec4899;
+  
+  /* ========================================
+     Typography System
+     ======================================== */
+  
+  /* Font Family */
+  --font-family-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  
+  /* Font Size */
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  
+  /* Font Weight */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  
+  /* Line Height */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  
+  /* ========================================
+     Spacing System (8px base)
+     ======================================== */
+  
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  
+  /* ========================================
+     Shadow System
+     ======================================== */
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  /* ========================================
+     Border Radius
+     ======================================== */
+  
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  
+  /* ========================================
+     Border Width
+     ======================================== */
+  
+  --border-width-default: 0.5px;
+  --border-width-active: 2px;
+  
+  /* ========================================
+     Transition
+     ======================================== */
+  
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ========================================
+   Dark Theme
+   ======================================== */
+[data-theme="dark"] {
+  --color-primary-50: #1e3a8a;
+  --color-primary-100: #1e40af;
+  --color-primary-200: #2563eb;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #93c5fd;
+  --color-primary-800: #bfdbfe;
+  --color-primary-900: #dbeafe;
+  
+  --color-secondary-50: #111827;
+  --color-secondary-100: #1f2937;
+  --color-secondary-200: #374151;
+  --color-secondary-300: #4b5563;
+  --color-secondary-400: #6b7280;
+  --color-secondary-500: #9ca3af;
+  --color-secondary-600: #d1d5db;
+  --color-secondary-700: #e5e7eb;
+  --color-secondary-800: #f3f4f6;
+  --color-secondary-900: #f9fafb;
+  
+  --color-background-primary: #111827;
+  --color-background-secondary: #1f2937;
+  --color-background-tertiary: #374151;
+  
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-text-tertiary: #6b7280;
+  
+  --color-border-tertiary: rgba(255, 255, 255, 0.08);
+  --color-border-secondary: rgba(255, 255, 255, 0.15);
+  --color-border-primary: rgba(96, 165, 250, 0.4);
+  --color-border-info: rgba(96, 165, 250, 0.4);
+}
+
+/* ========================================
+   Base Component Styles
+   ======================================== */
+
+/* Button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--border-radius-md);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background-color: var(--color-primary-500);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border: var(--border-width-default) solid var(--color-border-secondary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-background-secondary);
+}
+
+/* Input */
+.input {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-default) solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+  height: 36px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+/* Card */
+.card {
+  background-color: var(--color-background-primary);
+  border-radius: var(--border-radius-lg);
+  border: var(--border-width-default) solid var(--color-border-tertiary);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+}
+
+.badge-category {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-tag {
+  font-size: var(--font-size-xs);
+  padding: 3px 8px;
+  border-radius: 12px;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+}
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-background-secondary) 25%,
+    var(--color-background-tertiary) 50%,
+    var(--color-background-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--border-radius-md);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-tertiary);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+/* Text */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-tertiary {
+  color: var(--color-text-tertiary);
+}
+
+/* Background */
+.bg-primary {
+  background-color: var(--color-background-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-background-secondary);
+}
+
+.bg-tertiary {
+  background-color: var(--color-background-tertiary);
+}
+
+/* Border */
+.border-default {
+  border: var(--border-width-default) solid var(--color-border-tertiary);
+}
+
+.border-secondary {
+  border: var(--border-width-default) solid var(--color-border-secondary);
+}
+
+/* Transition */
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-normal {
+  transition: all var(--transition-normal);
+}
+
+/* Focus Visible */
+.focus-visible:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}

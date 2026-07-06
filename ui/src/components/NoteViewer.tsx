@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { api, NoteDetail, ThreadData } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton';
 
 function ThreadChain({ thread }: { thread: ThreadData }) {
   return (
@@ -16,19 +16,18 @@ function ThreadChain({ thread }: { thread: ThreadData }) {
         笔记链
       </p>
       <div className="space-y-1">
-        {thread.notes.map((n) => {
-          const depth = thread.notes.findIndex((x) => x.id === n.id);
+        {thread.notes.map((n, idx) => {
           const isCurrent = n.id === thread.notes[thread.notes.length - 1]?.id;
           return (
             <Link
               key={n.id}
               href={`/notes/${n.id}`}
-              className={`block rounded-md px-2 py-1 text-sm transition-colors ${
+              className={`block rounded-md px-2 py-1 text-sm transition-all duration-150 ${
                 isCurrent
-                  ? 'bg-accent font-medium'
-                  : 'text-muted-foreground hover:bg-accent'
+                  ? 'bg-accent font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
-              style={{ paddingLeft: `${depth * 20 + 8}px` }}
+              style={{ paddingLeft: `${idx * 20 + 8}px` }}
             >
               <span className="mr-2 text-muted-foreground">└</span>
               <span className="text-xs text-muted-foreground mr-1">{n.category}</span>
@@ -84,12 +83,12 @@ export default function NoteViewer({ id }: { id: string }) {
     );
   }
 
-  const categoryIcons: Record<string, string> = {
-    issues: '🔧',
-    articles: '📄',
-    ideas: '💡',
-    projects: '📁',
-    journal: '📓',
+  const categoryColors: Record<string, string> = {
+    issues: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+    articles: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    ideas: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    projects: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+    journal: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
   };
 
   return (
@@ -98,15 +97,17 @@ export default function NoteViewer({ id }: { id: string }) {
         {/* Meta */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-3xl">{categoryIcons[note.category] || '📁'}</span>
+            <span className="text-3xl">{note.category === 'issues' ? '🔧' : note.category === 'articles' ? '📄' : note.category === 'ideas' ? '💡' : note.category === 'journal' ? '📓' : '📁'}</span>
             <Badge variant="outline" className="text-xs">
               {note.category}
             </Badge>
           </div>
-          <h1 className="text-4xl font-bold mb-4">{note.title}</h1>
+          <h1 className="text-4xl font-semibold mb-4 text-foreground leading-tight">
+            {note.title}
+          </h1>
           <div className="flex items-center gap-2 flex-wrap">
             {note.tags.map((tag) => (
-              <Badge key={tag} variant="secondary">
+              <Badge key={tag} variant="secondary" className="text-xs">
                 #{tag}
               </Badge>
             ))}

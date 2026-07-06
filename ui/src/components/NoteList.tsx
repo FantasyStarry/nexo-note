@@ -2,11 +2,11 @@
 
 import { NoteSummary } from '@/lib/api';
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  issues: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  issues: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
   articles: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
   ideas: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   projects: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
@@ -46,22 +46,37 @@ export default function NoteList({
         <Link
           key={note.id}
           href={`/notes/${note.id}`}
-          className={`block mb-2 rounded-lg border p-3 transition-colors hover:bg-accent ${
-            activeId === note.id ? 'bg-accent border-primary' : 'border-transparent'
+          className={`block mb-2 rounded-lg border p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+            activeId === note.id
+              ? 'border-primary/40 bg-accent shadow-sm'
+              : 'border-border/50 bg-card hover:border-border/80'
           }`}
+          style={{ borderLeftWidth: activeId === note.id ? '3px' : '0.5px' }}
         >
+          {/* Category & Tags */}
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="secondary" className={CATEGORY_COLORS[note.category]}>
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0.5 font-medium ${CATEGORY_COLORS[note.category] || 'bg-gray-100 text-gray-600'}`}
+            >
               {note.category}
             </Badge>
             {note.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="text-xs text-muted-foreground">
+              <span key={tag} className="text-[10px] text-muted-foreground">
                 #{tag}
               </span>
             ))}
           </div>
-          <p className="text-sm font-medium mb-1">{note.title}</p>
-          <p className="text-xs text-muted-foreground">{timeAgo(note.created_at)}</p>
+
+          {/* Title */}
+          <h3 className={`text-sm font-medium mb-1 line-clamp-2 ${activeId === note.id ? 'text-foreground' : 'text-foreground/90'}`}>
+            {note.title}
+          </h3>
+
+          {/* Time */}
+          <p className="text-xs text-muted-foreground">
+            {timeAgo(note.created_at)}
+          </p>
         </Link>
       ))}
     </div>

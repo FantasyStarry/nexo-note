@@ -15,6 +15,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
+import { SidebarMenuBadge } from '@/components/ui/sidebar';
 
 const CATEGORIES = [
   { key: '', label: '全部笔记', icon: '📋' },
@@ -39,6 +40,22 @@ export default function AppSidebar({
 
   useEffect(() => {
     api.listTags().then(setTags).catch(() => {});
+  }, []);
+
+  // Keyboard shortcut: Ctrl+K to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('[data-sidebar="true"] input') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleSearch = useCallback(
@@ -78,9 +95,10 @@ export default function AppSidebar({
                     isActive={activeCategory === cat.key}
                     onClick={() => onCategoryChange(cat.key)}
                     tooltip={cat.label}
+                    className="transition-all duration-150"
                   >
-                    <span>{cat.icon}</span>
-                    <span>{cat.label}</span>
+                    <span className="text-base">{cat.icon}</span>
+                    <span className="font-medium">{cat.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -93,7 +111,9 @@ export default function AppSidebar({
         {/* Tags */}
         {tags.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>标签</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">
+              标签
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {tags.map((t) => (
@@ -101,12 +121,15 @@ export default function AppSidebar({
                     <SidebarMenuButton
                       onClick={() => { onCategoryChange(''); onSearch(t.tag); }}
                       size="sm"
+                      className="transition-all duration-150"
                     >
                       <span className="text-muted-foreground">#</span>
-                      <span>{t.tag}</span>
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {t.count}
-                      </Badge>
+                      <span className="flex-1 truncate">{t.tag}</span>
+                      <SidebarMenuBadge className="ml-auto">
+                        <Badge variant="secondary" className="text-xs">
+                          {t.count}
+                        </Badge>
+                      </SidebarMenuBadge>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
