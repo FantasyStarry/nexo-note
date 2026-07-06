@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(name = "nexo")]
 #[command(alias = "nn")]
 #[command(about = "A local markdown-based notes CLI for your knowledge base")]
@@ -22,7 +22,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum Commands {
     /// Initialize a new notebook repository
     Init {
@@ -168,10 +168,13 @@ pub enum Commands {
         /// Note ID
         id: String,
     },
+
+    /// Start the web UI dashboard
+    Ui,
 }
 
 /// Arguments for the init-mcp command
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct InitMcpArgs {
     /// Configure all detected AI agents
     #[arg(long)]
@@ -186,7 +189,7 @@ pub struct InitMcpArgs {
     pub project: bool,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum TagCommands {
     /// List all tags
     Ls,
@@ -198,7 +201,7 @@ pub enum TagCommands {
     Suggest { id: String },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum ConfigCommands {
     /// Set a config value
     Set { key: String, value: String },
