@@ -59,6 +59,10 @@ pub enum Commands {
         /// Extra frontmatter fields as key=value
         #[arg(short, long)]
         extra: Vec<String>,
+
+        /// Link this note to a parent note (creates a chain)
+        #[arg(long)]
+        link: Option<String>,
     },
 
     /// Edit a note in the default editor
@@ -158,6 +162,12 @@ pub enum Commands {
 
     /// Check MCP Server configuration and diagnose issues
     Doctor,
+
+    /// Show the full thread chain for a note
+    Thread {
+        /// Note ID
+        id: String,
+    },
 }
 
 /// Arguments for the init-mcp command

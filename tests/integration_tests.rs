@@ -223,7 +223,65 @@ fn test_stats_uses_database() {
 
     let (stdout, stderr, success) = run(&repo, &["stats", "--json"]);
     assert!(success, "stats failed: stdout={} stderr={}", stdout, stderr);
-    assert!(stdout.contains("\"total_notes\": 2"));
+    // total_notes = 3 because of auto-created journal note
+    assert!(stdout.contains("\"total_notes\": 3"));
     assert!(stdout.contains("\"total_tags\": 2"));
     assert!(stdout.contains("rust"));
+}
+
+#[test]
+fn test_note_chain() {
+    let repo = setup_repo();
+    let (stdout, _, success) = run(
+        &repo,
+        &["create", "Root Note", "-c", "issues", "--json"],
+    );
+    assert!(success, "root create failed: {}", stdout);
+    let root_id = extract_id(&stdout);
+
+    let (stdout, _, success) = run(
+        &repo,
+        &["create", "Child Note", "-c", "issues", "--link", &root_id, "--json"],
+    );
+    assert!(success, "child create failed: {}", stdout);
+    let child_id = extract_id(&stdout);
+
+    // Verify the child note has parent_id set.
+    let (view_out, _, success) = run(&repo, &["view", &child_id, "--json"]);
+    assert!(success, "view child failed: {}", view_out);
+    assert!(
+        view_out.contains(&root_id),
+        "child note view should reference parent_id: {}",
+        view_out
+    );
+
+    // Create a grandchild.
+    let (gc_stdout, _, success) = run(
+        &repo,
+        &["create", "Grandchild Note", "-c", "issues", "--link", &child_id, "--json"],
+    );
+    assert!(success, "grandchild create failed: {}", gc_stdout);
+
+    // Thread command should show all 3 notes.
+    let (thread_out, _, success) = run(&repo, &["thread", &root_id, "--json"]);
+    assert!(success, "thread failed: {}", thread_out);
+    assert!(thread_out.contains("Root Note"), "thread should contain root");
+    assert!(thread_out.contains("Child Note"), "thread should contain child");
+    assert!(thread_out.contains("Grandchild Note"), "thread should contain grandchild");
+}
+
+#[test]
+fn test_journal_auto_create() {
+    let repo = setup_repo();
+    // Creating any non-journal note should auto-create a journal entry.
+    let (stdout, _, success) = run(
+        &repo,
+        &["create", "A regular note", "-c", "articles", "--json"],
+    );
+    assert!(success, "create failed: {}", stdout);
+
+    let (ls_out, _, success) = run(&repo, &["ls", "--json"]);
+    assert!(success, "ls failed: {}", ls_out);
+    // We should have: the auto-created journal + the note we created
+    assert!(ls_out.contains("日志"), "ls should contain the journal entry: {}", ls_out);
 }

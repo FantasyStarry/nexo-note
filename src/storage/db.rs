@@ -44,6 +44,7 @@ impl Database {
                 content    TEXT NOT NULL DEFAULT '',
                 source_url TEXT NOT NULL DEFAULT '',
                 file_path  TEXT NOT NULL DEFAULT '',
+                parent_id  TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -84,6 +85,22 @@ impl Database {
             )?;
         }
 
+        // Migrate databases created before the parent_id column.
+        let has_parent_id: bool = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM pragma_table_info('notes') WHERE name = 'parent_id'",
+                [],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        if !has_parent_id {
+            self.conn.execute(
+                "ALTER TABLE notes ADD COLUMN parent_id TEXT",
+                [],
+            )?;
+        }
+
         Ok(())
     }
 
@@ -99,8 +116,8 @@ impl Database {
 
         // Upsert the note row.
         self.conn.execute(
-            "INSERT INTO notes (id, title, category, status, content, source_url, file_path, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            "INSERT INTO notes (id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
              ON CONFLICT(id) DO UPDATE SET
                 title      = excluded.title,
                 category   = excluded.category,
@@ -108,6 +125,7 @@ impl Database {
                 content    = excluded.content,
                 source_url = excluded.source_url,
                 file_path  = excluded.file_path,
+                parent_id  = excluded.parent_id,
                 updated_at = excluded.updated_at",
             params![
                 fm.id,
@@ -117,6 +135,7 @@ impl Database {
                 note.content,
                 fm.source_url,
                 fm.file_path,
+                fm.parent_id,
                 fm.created_at.to_rfc3339(),
                 fm.updated_at.to_rfc3339(),
             ],
@@ -208,7 +227,7 @@ impl Database {
     /// Find a single note by ID.
     pub fn find_note(&self, id: &str) -> Result<Option<Note>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at
              FROM notes WHERE id = ?1",
         )?;
 
@@ -255,7 +274,7 @@ impl Database {
         let order = "ORDER BY created_at DESC";
 
         let mut sql = format!(
-            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at
              FROM notes WHERE {} {}",
             where_clause, order
         );
@@ -303,7 +322,7 @@ impl Database {
 
         let where_clause = conditions.join(" AND ");
         let sql = format!(
-            "SELECT id, title, category, status, content, source_url, file_path, created_at, updated_at
+            "SELECT id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at
              FROM notes WHERE {} ORDER BY created_at DESC",
             where_clause
         );
@@ -354,6 +373,98 @@ impl Database {
             |row| row.get(0),
         )?;
         Ok(count > 0)
+    }
+
+    // ──────────────────────────────────────
+    // Thread / Chain
+    // ──────────────────────────────────────
+
+    /// Get the parent note ID, if any.
+    pub fn parent_id(&self, id: &str) -> Result<Option<String>> {
+        let result: Option<Option<String>> = self
+            .conn
+            .query_row(
+                "SELECT parent_id FROM notes WHERE id = ?1 AND parent_id IS NOT NULL AND parent_id != ''",
+                params![id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?;
+        Ok(result.flatten())
+    }
+
+    /// Get all direct children of a note, ordered by created_at.
+    pub fn get_children(&self, id: &str) -> Result<Vec<Note>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at
+             FROM notes WHERE parent_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let notes = stmt
+            .query_map(params![id], Self::row_to_note)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(notes)
+    }
+
+    /// Build the full thread chain for a note: [root, ...ancestors, note, ...descendants].
+    ///
+    /// Walks up the parent chain to find the root, then recursively collects all
+    /// descendants in breadth-first order.
+    pub fn get_thread(&self, id: &str) -> Result<Vec<Note>> {
+        // Build the ancestor chain: walk from id up to root.
+        let mut ancestors: Vec<Note> = Vec::new();
+        let mut current_id: Option<String> = Some(id.to_string());
+        while let Some(cid) = current_id {
+            if let Some(note) = self.find_note(&cid)? {
+                current_id = note.frontmatter.parent_id.clone();
+                if current_id.is_some() {
+                    ancestors.push(note);
+                } else {
+                    // This is the root - we'll re-add it below
+                    ancestors.push(note);
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        ancestors.reverse();
+
+        // Collect descendants (breadth-first).
+        let mut descendants: Vec<Note> = Vec::new();
+        let mut queue: Vec<String> = vec![id.to_string()];
+        while let Some(cid) = queue.pop() {
+            let children = self.get_children(&cid)?;
+            for child in children {
+                if child.frontmatter.id != id {
+                    descendants.push(child.clone());
+                    queue.push(child.frontmatter.id.clone());
+                }
+            }
+        }
+
+        // Re-fetch the central note to include in the result.
+        let central = self.find_note(id)?.ok_or_else(|| {
+            anyhow::anyhow!("note '{}' not found", id)
+        })?;
+
+        let mut result = ancestors;
+        result.push(central);
+        result.extend(descendants);
+        Ok(result)
+    }
+
+    /// Get today's journal note ID, if one exists.
+    pub fn today_journal_id(&self) -> Result<Option<String>> {
+        let today = Local::now().format("%Y-%m-%d").to_string();
+        let prefix = format!("journal-{}", today.replace('-', ""));
+        let id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT id FROM notes WHERE id LIKE ?1 AND category = 'journal' LIMIT 1",
+                params![format!("{}%", prefix)],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(id)
     }
 
     /// Total number of notes in the database.
@@ -525,8 +636,9 @@ impl Database {
         let content: String = row.get(4)?;
         let source_url: String = row.get(5)?;
         let file_path: String = row.get(6)?;
-        let created_at_str: String = row.get(7)?;
-        let updated_at_str: String = row.get(8)?;
+        let parent_id: Option<String> = row.get(7)?;
+        let created_at_str: String = row.get(8)?;
+        let updated_at_str: String = row.get(9)?;
 
         let parse_dt = |s: &str| -> DateTime<FixedOffset> {
             DateTime::parse_from_rfc3339(s)
@@ -551,6 +663,7 @@ impl Database {
             status,
             source_url,
             file_path,
+            parent_id,
             created_at: parse_dt(&created_at_str),
             updated_at: parse_dt(&updated_at_str),
         };

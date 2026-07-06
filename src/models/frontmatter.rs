@@ -15,6 +15,8 @@ pub struct Frontmatter {
     pub source_url: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub file_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
     pub created_at: DateTime<FixedOffset>,
     pub updated_at: DateTime<FixedOffset>,
 }
@@ -35,6 +37,7 @@ impl Frontmatter {
             status: default_status(),
             source_url: String::new(),
             file_path: String::new(),
+            parent_id: None,
             created_at: now,
             updated_at: now,
         }

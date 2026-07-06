@@ -16,6 +16,7 @@ pub fn run(
     content: Option<String>,
     content_file: Option<String>,
     extra: Vec<String>,
+    link: Option<String>,
 ) -> Result<()> {
     let repo = open_repo(cli)?;
 
@@ -32,7 +33,21 @@ pub fn run(
         (None, None) => None,
     };
 
-    let extra_map = parse_extra(extra)?;
+    let mut extra_map = parse_extra(extra)?;
+
+    // Handle --link: link to a specific parent note.
+    let parent_id = if let Some(parent) = &link {
+        Some(parent.clone())
+    } else if category != "journal" {
+        // Auto-link to today's journal (except for journal notes themselves).
+        repo.ensure_today_journal().ok()
+    } else {
+        None
+    };
+
+    if let Some(ref pid) = parent_id {
+        extra_map.insert("parent_id".to_string(), pid.clone());
+    }
 
     let note = repo.create_note(
         title,

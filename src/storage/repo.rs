@@ -191,8 +191,9 @@ impl Repo {
     }
 
     /// Validate that a category is allowed.
+    /// The "journal" category is always allowed (used internally).
     pub fn validate_category(&self, category: &str) -> Result<()> {
-        if self.categories.iter().any(|c| c == category) {
+        if category == "journal" || self.categories.iter().any(|c| c == category) {
             Ok(())
         } else {
             Err(anyhow!(
@@ -293,6 +294,7 @@ impl Repo {
         for (key, value) in extra {
             match key.as_str() {
                 "status" => frontmatter.status = value,
+                "parent_id" => frontmatter.parent_id = Some(value),
                 _ => {
                     return Err(anyhow!("unsupported extra field '{}'", key));
                 }
@@ -322,6 +324,26 @@ impl Repo {
         self.save_note_file(&note)?;
 
         Ok(note)
+    }
+
+    /// Create a new note with a parent (linked to another note).
+    pub fn create_linked_note(
+        &self,
+        title: &str,
+        category: &str,
+        tags: Vec<String>,
+        source_url: Option<&str>,
+        content: Option<&str>,
+        parent_id: &str,
+        extra: HashMap<String, String>,
+    ) -> Result<Note> {
+        // Verify parent exists.
+        if !self.db.note_exists(parent_id)? {
+            return Err(anyhow!("parent note '{}' not found", parent_id));
+        }
+        let mut extra = extra;
+        extra.insert("parent_id".to_string(), parent_id.to_string());
+        self.create_note(title, category, tags, source_url, content, extra)
     }
 
     /// Find a note by ID. Checks SQLite first, falls back to .md file.
@@ -429,6 +451,31 @@ impl Repo {
             return Ok(());
         }
         Err(anyhow!("note '{}' not found", id))
+    }
+
+    // ──────────────────────────────────────
+    // Thread / Journal
+    // ──────────────────────────────────────
+
+    /// Get the full thread chain for a note.
+    pub fn get_thread(&self, id: &str) -> Result<Vec<Note>> {
+        let mut notes = self.db.get_thread(id)?;
+        self.db.populate_tags_batch(&mut notes)?;
+        Ok(notes)
+    }
+
+    /// Get or create today's journal note.
+    ///
+    /// If today's journal already exists, returns its ID.
+    /// Otherwise creates a new journal note and returns its ID.
+    pub fn ensure_today_journal(&self) -> Result<String> {
+        if let Some(id) = self.db.today_journal_id()? {
+            return Ok(id);
+        }
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let title = format!("{} 日志", today);
+        let note = self.create_note(&title, "journal", Vec::new(), None, None, HashMap::new())?;
+        Ok(note.frontmatter.id)
     }
 
     // ──────────────────────────────────────

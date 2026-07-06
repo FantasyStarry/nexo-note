@@ -40,6 +40,7 @@ fn default_categories() -> Vec<String> {
         "articles".to_string(),
         "ideas".to_string(),
         "projects".to_string(),
+        "journal".to_string(),
     ]
 }
 

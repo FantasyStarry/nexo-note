@@ -12,6 +12,7 @@ pub mod search;
 pub mod serve;
 pub mod stats;
 pub mod tag;
+pub mod thread;
 pub mod view;
 
 use crate::cli::{Cli, Commands, ConfigCommands, TagCommands};
@@ -40,6 +41,7 @@ pub fn run(cli: Cli) -> Result<()> {
             ref content,
             ref content_file,
             ref extra,
+            ref link,
         } => create::run(
             &cli,
             title,
@@ -49,6 +51,7 @@ pub fn run(cli: Cli) -> Result<()> {
             content.clone(),
             content_file.clone(),
             extra.clone(),
+            link.clone(),
         ),
         Commands::Edit { ref id, ref editor } => edit::run(&cli, id, editor.clone()),
         Commands::View { ref id } => view::run(&cli, id),
@@ -88,5 +91,6 @@ pub fn run(cli: Cli) -> Result<()> {
         Commands::Serve => serve::run(&cli),
         Commands::InitMcp(ref args) => init_mcp::run(args),
         Commands::Doctor => init_mcp::doctor(),
+        Commands::Thread { ref id } => thread::run(&cli, id),
     }
 }

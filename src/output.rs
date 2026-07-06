@@ -84,6 +84,25 @@ pub struct NoteData {
     pub content: String,
 }
 
+/// Data payload returned by `nexo thread`.
+#[derive(Debug, Serialize)]
+pub struct ThreadData {
+    pub notes: Vec<ThreadNote>,
+    pub total: usize,
+}
+
+/// A single note in a thread chain.
+#[derive(Debug, Serialize)]
+pub struct ThreadNote {
+    pub id: String,
+    pub title: String,
+    pub category: String,
+    pub status: String,
+    pub tags: Vec<String>,
+    pub depth: usize,
+    pub parent_id: Option<String>,
+}
+
 /// Summary row returned by `nexo ls`.
 #[derive(Debug, Serialize)]
 pub struct NoteSummary {
@@ -162,6 +181,33 @@ impl HumanText for NoteData {
             self.path.display(),
             crate::models::note::Note::new(self.frontmatter.clone(), self.content.clone())
         )
+    }
+}
+
+impl HumanText for ThreadData {
+    fn human_text(&self) -> String {
+        if self.notes.is_empty() {
+            return "No notes found.".to_string();
+        }
+        let mut lines = Vec::new();
+        for note in &self.notes {
+            let indent = "  ".repeat(note.depth);
+            let tags = if note.tags.is_empty() {
+                String::new()
+            } else {
+                format!(" [{}]", note.tags.join(", "))
+            };
+            lines.push(format!(
+                "{}{} {} ({}){}",
+                indent,
+                if note.depth == 0 { ">" } else { "-" },
+                note.title,
+                note.id,
+                tags,
+            ));
+        }
+        lines.push(format!("\n共 {} 篇笔记", self.total));
+        lines.join("\n")
     }
 }
 
