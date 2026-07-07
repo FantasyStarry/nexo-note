@@ -11,7 +11,7 @@ A local markdown-based notes CLI for your knowledge base. 一个本地 Markdown 
 - JSON 输出，方便 agent 解析
 - 笔记库 Git 版本管理
 - 单条笔记历史版本
-- **MCP Server 支持** - 可被 AI Agent（WorkBuddy, Claude Code, Cursor 等）直接调用
+- **MCP Server 支持** - 可被 AI Agent（WorkBuddy, Claude Code, Cursor, Codex, Windsurf, CodeBuddy, Trae 等）直接调用，并自动发现系统中遵循 `~/.agent/mcp.json` + `mcpServers` 约定的已安装助手
 - SQLite 数据库存储元数据，快速查询
 
 ## 安装
@@ -46,7 +46,7 @@ npx nexo-note --help
 
 ## 配置 MCP Server（推荐）
 
-nexo 支持 MCP Server，可以被 AI Agent（WorkBuddy, Claude Code, Cursor, Codex 等）直接调用。
+nexo 支持 MCP Server，可以被 AI Agent（WorkBuddy, Claude Code, Cursor, Codex, Windsurf, CodeBuddy, Trae 等）直接调用。`init-mcp` 会配置已知助手，并自动扫描 home、`%APPDATA%`、`%LOCALAPPDATA%`、`~/.config` 下所有符合 `~/.agent/mcp.json` + `mcpServers` 约定的配置文件，从而发现未知的新助手。
 
 ### 自动配置
 
@@ -84,6 +84,11 @@ nexo init-mcp --agent cursor
 - Claude Code: `~/.claude/mcp.json`
 - Cursor: `~/.cursor/mcp.json`
 - Codex: `~/.codex/mcp.json`
+- Windsurf: `~/.windsurf/mcp.json`
+- CodeBuddy: `~/.codebuddy/mcp.json`
+- Trae: `~/.trae/mcp.json`
+
+除上述已知助手外，`nexo init-mcp` 还会自动发现任意遵循 `~/.agent/mcp.json` + `mcpServers` 约定的配置文件，无需为新的 AI Agent 修改 nexo 源码。
 
 ### 诊断
 

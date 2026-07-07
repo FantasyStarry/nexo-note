@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jet",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "nexo-note",
-  description: "A local markdown knowledge base",
+  description: "本地 Markdown 知识库",
 };
 
 export default function RootLayout({
@@ -24,11 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="overflow-hidden">
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
+    <html
+      lang="zh-CN"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="overflow-hidden antialiased">
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 //! This command detects installed AI agents on the system and configures
 //! the nexo MCP Server for each of them.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -13,7 +14,7 @@ use anyhow::{Context, Result};
 #[derive(Debug, Clone)]
 struct AgentConfig {
     /// Agent name (for display)
-    name: &'static str,
+    name: String,
     /// Configuration file path (global)
     global_config_path: Option<PathBuf>,
     /// Configuration file path (project-level)
@@ -40,7 +41,7 @@ fn detect_agents() -> Vec<AgentConfig> {
     if let Some(home) = &home_dir {
         let workbuddy_config = home.join(".workbuddy/mcp.json");
         agents.push(AgentConfig {
-            name: "WorkBuddy",
+            name: "WorkBuddy".to_string(),
             global_config_path: Some(workbuddy_config),
             project_config_path: None,
             is_installed: home.join(".workbuddy").exists(),
@@ -52,7 +53,7 @@ fn detect_agents() -> Vec<AgentConfig> {
         let claude_config = home.join(".claude/mcp.json");
         let claude_json = home.join(".claude.json");
         agents.push(AgentConfig {
-            name: "Claude Code",
+            name: "Claude Code".to_string(),
             global_config_path: Some(claude_config),
             project_config_path: Some(PathBuf::from(".claude/mcp.json")),
             is_installed: claude_json.exists() || home.join(".claude").exists(),
@@ -63,7 +64,7 @@ fn detect_agents() -> Vec<AgentConfig> {
     if let Some(home) = &home_dir {
         let cursor_config = home.join(".cursor/mcp.json");
         agents.push(AgentConfig {
-            name: "Cursor",
+            name: "Cursor".to_string(),
             global_config_path: Some(cursor_config),
             project_config_path: Some(PathBuf::from(".cursor/mcp.json")),
             is_installed: home.join(".cursor").exists(),
@@ -74,7 +75,7 @@ fn detect_agents() -> Vec<AgentConfig> {
     if let Some(home) = &home_dir {
         let codex_config = home.join(".codex/mcp.json");
         agents.push(AgentConfig {
-            name: "Codex",
+            name: "Codex".to_string(),
             global_config_path: Some(codex_config),
             project_config_path: Some(PathBuf::from(".codex/mcp.json")),
             is_installed: home.join(".codex").exists(),
@@ -85,13 +86,105 @@ fn detect_agents() -> Vec<AgentConfig> {
     if let Some(home) = &home_dir {
         let windsurf_config = home.join(".windsurf/mcp.json");
         agents.push(AgentConfig {
-            name: "Windsurf",
+            name: "Windsurf".to_string(),
             global_config_path: Some(windsurf_config),
             project_config_path: Some(PathBuf::from(".windsurf/mcp.json")),
             is_installed: home.join(".windsurf").exists(),
         });
     }
-    
+
+    // CodeBuddy
+    if let Some(home) = &home_dir {
+        let codebuddy_config = home.join(".codebuddy/mcp.json");
+        agents.push(AgentConfig {
+            name: "CodeBuddy".to_string(),
+            global_config_path: Some(codebuddy_config.clone()),
+            project_config_path: Some(PathBuf::from(".codebuddy/mcp.json")),
+            is_installed: home.join(".codebuddy").exists(),
+        });
+
+        // Trae
+        let trae_config = home.join(".trae/mcp.json");
+        agents.push(AgentConfig {
+            name: "Trae".to_string(),
+            global_config_path: Some(trae_config.clone()),
+            project_config_path: Some(PathBuf::from(".trae/mcp.json")),
+            is_installed: home.join(".trae").exists(),
+        });
+    }
+
+    // Generic discovery: scan common config roots for any `mcp.json` that follows
+    // the `~/.agent/mcp.json` + `mcpServers` convention, and register unknown agents
+    // so newly-installed tools are picked up without code changes.
+    let mut known_paths: HashSet<PathBuf> = agents
+        .iter()
+        .filter_map(|a| {
+            a.global_config_path
+                .as_ref()
+                .and_then(|p| p.canonicalize().ok().or(Some(p.clone())))
+        })
+        .collect();
+
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(home) = &home_dir {
+        roots.push(home.clone());
+    }
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        roots.push(PathBuf::from(appdata));
+    }
+    if let Some(localdata) = std::env::var_os("LOCALAPPDATA") {
+        roots.push(PathBuf::from(localdata));
+    }
+    if let Some(home) = &home_dir {
+        roots.push(home.join(".config"));
+    }
+
+    for root in roots {
+        if !root.exists() {
+            continue;
+        }
+        let entries = match std::fs::read_dir(&root) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let candidate = path.join("mcp.json");
+            if !candidate.exists() {
+                continue;
+            }
+            let candidate_norm = candidate.canonicalize().unwrap_or_else(|_| candidate.clone());
+            if known_paths.contains(&candidate_norm) {
+                continue;
+            }
+            known_paths.insert(candidate_norm.clone());
+            let raw = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Unknown")
+                .trim_start_matches('.')
+                .to_string();
+            let display = if raw.is_empty() {
+                "Unknown".to_string()
+            } else {
+                let mut chars = raw.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    None => "Unknown".to_string(),
+                }
+            };
+            agents.push(AgentConfig {
+                name: display,
+                global_config_path: Some(candidate_norm),
+                project_config_path: None,
+                is_installed: true,
+            });
+        }
+    }
+
     agents
 }
 
@@ -181,7 +274,7 @@ pub fn run(args: &InitMcpArgs) -> Result<()> {
     
     if filtered_agents.is_empty() {
         println!("Warning: No installed AI agents detected.");
-        println!("Supported agents: WorkBuddy, Claude Code, Cursor, Codex, Windsurf");
+        println!("Supported agents: WorkBuddy, Claude Code, Cursor, Codex, Windsurf, CodeBuddy, Trae (plus any following the ~/.agent/mcp.json convention)");
         return Ok(());
     }
     
