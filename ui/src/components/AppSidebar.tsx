@@ -20,12 +20,16 @@ import { CATEGORY_META } from "@/lib/categories";
 
 export default function AppSidebar({
   onCategoryChange,
+  onTagSelect,
   onSearch,
   activeCategory,
+  activeTag,
 }: {
   onCategoryChange: (cat: string) => void;
+  onTagSelect: (tag: string) => void;
   onSearch: (q: string) => void;
   activeCategory: string;
+  activeTag: string;
 }) {
   const [tags, setTags] = useState<TagCount[]>([]);
   const [query, setQuery] = useState("");
@@ -76,7 +80,7 @@ export default function AppSidebar({
         {/* Workspace mark */}
         <div className="px-3 pb-1 pt-4">
           <div className="flex items-center gap-2 px-1">
-            <div className="flex size-6 items-center justify-center rounded-md bg-foreground/90 text-[11px] font-semibold text-background">
+            <div className="flex size-6 items-center justify-center rounded-md border border-border bg-background text-[11px] font-semibold text-foreground/70">
               N
             </div>
             <span className="text-[15px] font-semibold tracking-tight text-foreground">
@@ -99,7 +103,7 @@ export default function AppSidebar({
                   onSearch("");
                 }
               }}
-              className="h-8 border-transparent bg-black/[0.035] pl-8 text-[13px] hover:bg-black/[0.05] focus-visible:border-border focus-visible:bg-background dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"
+              className="h-8 border-transparent bg-[rgba(42,39,34,0.04)] pl-8 text-[13px] placeholder:text-muted-foreground/60 transition-colors hover:bg-[rgba(42,39,34,0.06)] focus-visible:border-border focus-visible:bg-background dark:bg-white/[0.04] dark:hover:bg-white/[0.06]"
             />
           </form>
         </div>
@@ -124,7 +128,7 @@ export default function AppSidebar({
                       <span className="font-medium">{meta.label}</span>
                     </SidebarMenuButton>
                     <SidebarMenuBadge>
-                      <span className="rounded bg-black/[0.05] px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground dark:bg-white/[0.07]">
+                      <span className="text-[11px] tabular-nums text-tertiary">
                         {key === "" ? total : (catCounts[key] ?? 0)}
                       </span>
                     </SidebarMenuBadge>
@@ -148,17 +152,14 @@ export default function AppSidebar({
                 {tags.map((t) => (
                   <SidebarMenuItem key={t.tag}>
                     <SidebarMenuButton
-                      onClick={() => {
-                        onCategoryChange("");
-                        onSearch(t.tag);
-                      }}
+                      isActive={activeTag === t.tag}
+                      onClick={() => onTagSelect(t.tag)}
                       size="sm"
                       className="gap-1.5 px-2.5 text-[13px] text-muted-foreground"
                     >
-                      <span className="text-muted-foreground/70">#</span>
                       <span className="flex-1 truncate">{t.tag}</span>
                       <SidebarMenuBadge className="ml-auto">
-                        <span className="rounded bg-black/[0.05] px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground dark:bg-white/[0.07]">
+                        <span className="text-[11px] tabular-nums text-tertiary">
                           {t.count}
                         </span>
                       </SidebarMenuBadge>

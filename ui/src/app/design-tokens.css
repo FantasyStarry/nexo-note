@@ -1,48 +1,48 @@
 /* ========================================
-   nexo-note Design Tokens — Notion-inspired
-   Warm-neutral palette, soft pastels, subtle borders.
+   nexo-note Design Tokens — Warm Editorial Paper
+   Calm paper surface + restrained teal accent. Content-first.
    ======================================== */
 
 :root {
-  /* Primary — Notion link blue */
-  --color-primary-50: #e7f1fb;
-  --color-primary-100: #cfe3f7;
-  --color-primary-200: #a9cdf0;
-  --color-primary-400: #4a96e8;
-  --color-primary-500: #2383e2;
-  --color-primary-600: #1a6fc4;
-  --color-primary-800: #155a9e;
-  --color-primary-900: #0b3a5c;
+  /* Primary — restrained teal (calm, premium, content-first) */
+  --color-primary-50: #e6f4f1;
+  --color-primary-100: #cce8e2;
+  --color-primary-200: #9fd2c8;
+  --color-primary-400: #34a394;
+  --color-primary-500: #0d7d72; /* main accent */
+  --color-primary-600: #0a655c;
+  --color-primary-800: #074a44;
+  --color-primary-900: #042e2b;
 
-  /* Neutral — Notion signature warm gray text */
-  --color-text-primary: #37352f;
-  --color-text-secondary: rgba(55, 53, 47, 0.65);
-  --color-text-tertiary: rgba(55, 53, 47, 0.4);
+  /* Neutral — warm ink on paper */
+  --color-text-primary: #2a2722;
+  --color-text-secondary: rgba(42, 39, 34, 0.62);
+  --color-text-tertiary: rgba(42, 39, 34, 0.4);
 
-  /* Backgrounds */
-  --color-background-primary: #ffffff; /* content */
-  --color-background-secondary: #f7f6f3; /* sidebar / subtle fill */
-  --color-background-tertiary: #f1f0ee;
+  /* Backgrounds — warm paper */
+  --color-background-primary: #fcfbf9; /* content canvas */
+  --color-background-secondary: #f4f2ec; /* sidebar / subtle fill */
+  --color-background-tertiary: #ece8e0;
 
-  /* Hover / active fills (translucent warm) */
-  --color-hover: rgba(55, 53, 47, 0.055);
-  --color-active: rgba(55, 53, 47, 0.09);
+  /* Hover / active fills */
+  --color-hover: rgba(42, 39, 34, 0.05);
+  --color-active: rgba(13, 125, 114, 0.09); /* teal-tinted active */
 
-  /* Borders — delicate */
-  --color-border-tertiary: rgba(55, 53, 47, 0.09);
-  --color-border-secondary: rgba(55, 53, 47, 0.16);
-  --color-border-primary: rgba(35, 131, 226, 0.4);
-  --color-border-info: rgba(35, 131, 226, 0.4);
+  /* Borders — delicate, warm */
+  --color-border-tertiary: rgba(42, 39, 34, 0.1);
+  --color-border-secondary: rgba(42, 39, 34, 0.16);
+  --color-border-primary: rgba(13, 125, 114, 0.4);
+  --color-border-info: rgba(13, 125, 114, 0.4);
 
   /* Semantic */
-  --color-success: #0f7b46;
-  --color-warning: #b4511b;
-  --color-error: #e03e3e;
-  --color-info: #2383e2;
+  --color-success: #2e7d5b;
+  --color-warning: #b45309;
+  --color-error: #c0392b;
+  --color-info: #0d7d72;
 
-  /* Category accents (muted) */
+  /* Category accents (muted, harmonised) */
   --color-articles: #0b6e99;
-  --color-issues: #b4511b;
+  --color-issues: #b45309;
   --color-ideas: #6940a5;
   --color-projects: #0f7b46;
   --color-journal: #ad1a72;
@@ -67,7 +67,7 @@
 
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
-  --line-height-relaxed: 1.625;
+  --line-height-relaxed: 1.65;
 
   /* Spacing (8px base) */
   --space-1: 0.25rem;
@@ -81,16 +81,16 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
-  /* Shadows — kept extremely light */
-  --shadow-sm: 0 1px 2px 0 rgb(15 15 15 / 0.04);
-  --shadow-md: 0 4px 12px -4px rgb(15 15 15 / 0.08);
-  --shadow-lg: 0 12px 28px -8px rgb(15 15 15 / 0.12);
+  /* Shadows — soft, layered */
+  --shadow-sm: 0 1px 2px 0 rgb(30 25 18 / 0.05);
+  --shadow-md: 0 6px 18px -6px rgb(30 25 18 / 0.12);
+  --shadow-lg: 0 16px 36px -10px rgb(30 25 18 / 0.16);
 
-  /* Radius — small, Notion-like */
-  --border-radius-sm: 4px;
-  --border-radius-md: 6px;
-  --border-radius-lg: 8px;
-  --border-radius-xl: 12px;
+  /* Radius — soft, friendly */
+  --border-radius-sm: 6px;
+  --border-radius-md: 10px;
+  --border-radius-lg: 14px;
+  --border-radius-xl: 18px;
 
   --border-width-default: 1px;
   --border-width-active: 2px;
@@ -100,36 +100,46 @@
   --transition-slow: 300ms ease;
 }
 
-/* Dark theme — Notion dark */
+/* Dark theme — warm ink on charcoal */
 .dark,
 [data-theme="dark"] {
-  --color-text-primary: rgba(255, 255, 255, 0.85);
-  --color-text-secondary: rgba(255, 255, 255, 0.5);
-  --color-text-tertiary: rgba(255, 255, 255, 0.32);
+  --color-primary-50: #0a2e2a;
+  --color-primary-100: #0f4039;
+  --color-primary-200: #14564c;
+  --color-primary-400: #2fa093;
+  --color-primary-500: #34a394;
+  --color-primary-600: #4db8aa;
+  --color-primary-800: #6fc9bc;
+  --color-primary-900: #9fded3;
 
-  --color-background-primary: #191919;
-  --color-background-secondary: #202020;
-  --color-background-tertiary: #2a2a2a;
+  --color-text-primary: rgba(245, 243, 238, 0.9);
+  --color-text-secondary: rgba(245, 243, 238, 0.56);
+  --color-text-tertiary: rgba(245, 243, 238, 0.34);
 
-  --color-hover: rgba(255, 255, 255, 0.055);
-  --color-active: rgba(255, 255, 255, 0.09);
+  --color-background-primary: #1b1a17;
+  --color-background-secondary: #232220;
+  --color-background-tertiary: #2c2b27;
 
-  --color-border-tertiary: rgba(255, 255, 255, 0.09);
-  --color-border-secondary: rgba(255, 255, 255, 0.16);
-  --color-border-primary: rgba(82, 156, 202, 0.5);
-  --color-border-info: rgba(82, 156, 202, 0.5);
+  --color-hover: rgba(245, 243, 238, 0.055);
+  --color-active: rgba(52, 163, 148, 0.14);
 
-  --color-primary-500: #529cca;
-  --color-primary-600: #6fb0d8;
+  --color-border-tertiary: rgba(245, 243, 238, 0.1);
+  --color-border-secondary: rgba(245, 243, 238, 0.18);
+  --color-border-primary: rgba(52, 163, 148, 0.5);
+  --color-border-info: rgba(52, 163, 148, 0.5);
+
+  --color-success: #4caf7d;
+  --color-warning: #d99a4e;
+  --color-error: #e57373;
+  --color-info: #34a394;
 
   --color-articles: #6cb6dd;
-  --color-issues: #e09a6a;
+  --color-issues: #e0a36a;
   --color-ideas: #b694e0;
   --color-projects: #6cc59a;
   --color-journal: #e08bc2;
 
-  --color-success: #4caf7d;
-  --color-warning: #e09a6a;
-  --color-error: #ff6b6b;
-  --color-info: #529cca;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 6px 18px -6px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 16px 36px -10px rgb(0 0 0 / 0.55);
 }

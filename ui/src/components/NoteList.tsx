@@ -2,7 +2,7 @@
 
 import { NoteSummary } from "@/lib/api";
 import Link from "next/link";
-import { CATEGORY_BADGE, CATEGORY_META, categoryLabel } from "@/lib/categories";
+import { CATEGORY_META } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 
 function timeAgo(dateStr: string): string {
@@ -21,10 +21,18 @@ export default function NoteList({
   notes,
   activeId,
   emptyMessage,
+  category,
+  search,
+  tag,
+  onSelect,
 }: {
   notes: NoteSummary[];
   activeId?: string;
   emptyMessage?: string;
+  category?: string;
+  search?: string;
+  tag?: string;
+  onSelect?: (id: string) => void;
 }) {
   if (notes.length === 0) {
     return (
@@ -39,16 +47,34 @@ export default function NoteList({
       {notes.map((note) => {
         const active = activeId === note.id;
         const Icon = CATEGORY_META[note.category]?.icon;
+        const qs = [
+          category && `cat=${encodeURIComponent(category)}`,
+          tag && `tag=${encodeURIComponent(tag)}`,
+          search && `q=${encodeURIComponent(search)}`,
+        ]
+          .filter(Boolean)
+          .join("&");
+        const href = `/notes/${note.id}${qs ? `?${qs}` : ""}`;
         return (
           <Link
             key={note.id}
-            href={`/notes/${note.id}`}
+            href={href}
             aria-current={active ? "true" : undefined}
+            onClick={(e) => {
+              if (
+                onSelect &&
+                typeof window !== "undefined" &&
+                !window.matchMedia("(max-width: 767px)").matches
+              ) {
+                e.preventDefault();
+                onSelect(note.id);
+              }
+            }}
             className={cn(
-              "block border-b border-l-2 border-border/70 border-l-transparent px-4 py-3 transition-colors duration-150",
+              "block border-b border-l-2 border-border/70 px-4 py-3 transition-colors duration-150",
               active
-                ? "border-l-[#2383e2] bg-[rgba(55,53,47,0.07)]"
-                : "hover:bg-[rgba(55,53,47,0.03)]"
+                ? "border-l-[#0d7d72] bg-[rgba(13,125,114,0.07)]"
+                : "border-l-transparent hover:bg-[rgba(42,39,34,0.03)]"
             )}
           >
             <div className="mb-1.5 flex items-center gap-2">
@@ -58,17 +84,9 @@ export default function NoteList({
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-5">
-              <span
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[11px] font-medium",
-                  CATEGORY_BADGE[note.category] || "bg-muted text-muted-foreground"
-                )}
-              >
-                {categoryLabel(note.category)}
-              </span>
               {note.tags.slice(0, 3).map((tag) => (
                 <span key={tag} className="text-[11px] text-muted-foreground">
-                  #{tag}
+                  {tag}
                 </span>
               ))}
             </div>

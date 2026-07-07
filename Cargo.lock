@@ -771,7 +771,7 @@ dependencies = [
 
 [[package]]
 name = "nexo-note"
-version = "0.5.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "axum",
