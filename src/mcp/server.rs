@@ -206,9 +206,22 @@ impl NexoServer {
     fn create_note(&self, Parameters(params): Parameters<CreateNoteParams>) -> String {
         let repo = self.repo.lock().unwrap_or_else(|e| e.into_inner());
         let mut extra = std::collections::HashMap::new();
-        if let Some(pid) = &params.parent_id {
+
+        // Mirror the CLI `create` behavior: a non-journal note is auto-linked to
+        // today's journal (its parent) unless an explicit parent_id is supplied.
+        // Without this, MCP-created notes had parent_id = None, so get_thread()
+        // returned a single-element chain and the Web UI showed "暂无笔记链".
+        let parent_id = if let Some(pid) = &params.parent_id {
+            Some(pid.clone())
+        } else if params.category != "journal" {
+            repo.ensure_today_journal().ok()
+        } else {
+            None
+        };
+        if let Some(pid) = &parent_id {
             extra.insert("parent_id".to_string(), pid.clone());
         }
+
         match repo.create_note(
             &params.title,
             &params.category,

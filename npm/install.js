@@ -39,43 +39,89 @@ console.log(`URL: ${url}`);
 
 fs.mkdirSync(binDir, { recursive: true });
 
-const file = fs.createWriteStream(outputPath);
-
-https
-  .get(url, (response) => {
-    if (response.statusCode === 302 || response.statusCode === 301) {
-      https
-        .get(response.headers.location, (redirectResponse) => {
-          redirectResponse.pipe(file);
-          file.on('finish', () => {
-            file.close();
-            if (platform !== 'win32') {
-              fs.chmodSync(outputPath, 0o755);
-            }
-            console.log(`nexo installed at ${outputPath}`);
-          });
-        })
-        .on('error', (err) => {
-          fs.unlinkSync(outputPath);
-          console.error(`Download failed: ${err.message}`);
-          process.exit(1);
-        });
-    } else if (response.statusCode === 200) {
+// Follow redirects (including nested ones) until we reach the final file.
+function download(currentUrl, redirectsLeft) {
+  if (redirectsLeft <= 0) {
+    fail(`Too many redirects while downloading from ${url}`);
+    return;
+  }
+  https
+    .get(currentUrl, (response) => {
+      const status = response.statusCode;
+      if (status === 301 || status === 302 || status === 307 || status === 308) {
+        const location = response.headers.location;
+        if (!location) {
+          fail(`Redirect (${status}) with no Location header from ${currentUrl}`);
+          return;
+        }
+        response.resume(); // discard the redirect response body
+        const next = location.startsWith('http')
+          ? location
+          : new URL(location, currentUrl).toString();
+        download(next, redirectsLeft - 1);
+        return;
+      }
+      if (status !== 200) {
+        fail(`Download failed with HTTP ${status} for ${currentUrl}`);
+        return;
+      }
+      const file = fs.createWriteStream(outputPath);
       response.pipe(file);
       file.on('finish', () => {
-        file.close();
-        if (platform !== 'win32') {
-          fs.chmodSync(outputPath, 0o755);
-        }
-        console.log(`nexo installed at ${outputPath}`);
+        file.close(() => {
+          if (!validateBinary(outputPath)) {
+            fail(
+              `Downloaded file at ${outputPath} is not a valid nexo binary ` +
+                `(it may be an HTML error page from a missing release asset). ` +
+                `Expected release asset "${assetName}" for v${version}. ` +
+                `Check https://github.com/${repo}/releases/tag/v${version} or run ` +
+                '`npm install -g nexo-note` again after the release is published.'
+            );
+            return;
+          }
+          if (platform !== 'win32') {
+            fs.chmodSync(outputPath, 0o755);
+          }
+          console.log(`nexo installed at ${outputPath}`);
+        });
       });
-    } else {
-      console.error(`Download failed with status ${response.statusCode}`);
-      process.exit(1);
+    })
+    .on('error', (err) => {
+      fs.existsSync(outputPath) && fs.unlinkSync(outputPath);
+      fail(`Download failed: ${err.message}`);
+    });
+}
+
+// Ensure the downloaded file is a real binary and not an HTML error page.
+function validateBinary(p) {
+  try {
+    const stat = fs.statSync(p);
+    if (!stat.isFile() || stat.size < 1024 * 1024) {
+      return false;
     }
-  })
-  .on('error', (err) => {
+    const fd = fs.openSync(p, 'r');
+    const buf = Buffer.alloc(512);
+    fs.readSync(fd, buf, 0, 512, 0);
+    fs.closeSync(fd);
+    const head = buf.toString('latin1').toLowerCase();
+    // Reject obvious HTML error pages returned instead of the binary.
+    return !head.includes('<!doctype') && !head.includes('<html');
+  } catch (e) {
+    return false;
+  }
+}
+
+function fail(message) {
+  if (fs.existsSync(outputPath)) {
     fs.unlinkSync(outputPath);
-    console.error(`Download failed: ${err.message}`);
-    process.exit(1);
-  });
+  }
+  console.error('');
+  console.error('nexo-note postinstall failed:');
+  console.error(message);
+  console.error('');
+  console.error('You can still use nexo-note by downloading the binary manually from:');
+  console.error(`https://github.com/${repo}/releases/tag/v${version}`);
+  process.exit(1);
+}
+
+download(url, 10);

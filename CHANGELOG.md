@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-07-07 (unreleased)
+
+### Fixed
+- 修复 MCP `create_note` 创建笔记后笔记链为空的问题：此前 MCP 创建的非 journal 笔记未像 CLI 那样自动挂接到「当日日志」作为父节点，导致 `get_thread` 只返回单条笔记、Web UI 显示「暂无笔记链」。现已与 CLI 行为对齐，未显式指定 `parent_id` 时自动关联当日日志
+- 修复 `nexo init-mcp` 生成的 MCP 配置依赖 `nexo` 在 PATH 中（本地 npm 安装时往往不满足），改为写入 nexo 二进制绝对路径，确保 AI 助手开箱即可启动 MCP Server
+
+### Changed
+- `npm/install.js` 安装脚本增强：递归跟随重定向、下载完成后校验文件确为有效二进制（而非 GitHub 的 HTML 404 页面），失败时给出明确指引，避免留下损坏的二进制导致后续命令静默失败
+
 ## [0.6.1] - 2026-07-07
 
 ### Added

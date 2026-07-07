@@ -189,13 +189,17 @@ fn detect_agents() -> Vec<AgentConfig> {
 }
 
 /// Create MCP server configuration JSON
-fn create_mcp_config(_executable_path: &Path) -> serde_json::Value {
-    // Use "nexo" instead of full path to avoid encoding issues
-    // This assumes nexo is in PATH
+///
+/// Uses the absolute path to the nexo binary so the MCP server launches
+/// correctly without requiring `nexo` to be on the user's PATH (which is not
+/// guaranteed for local npm installs). JSON strings handle spaces and
+/// non-ASCII characters in the path safely.
+fn create_mcp_config(executable_path: &Path) -> serde_json::Value {
+    let command = executable_path.display().to_string();
     serde_json::json!({
         "mcpServers": {
             "nexo-note": {
-                "command": "nexo",
+                "command": command,
                 "args": ["serve"]
             }
         }
