@@ -1,6 +1,6 @@
 [package]
 name = "nexo-note"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2024"
 description = "A local markdown-based notes CLI for your knowledge base"
 authors = ["FantasyStarry"]
