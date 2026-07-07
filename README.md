@@ -198,12 +198,14 @@ nexo --help
 | `nexo init-mcp [--all] [--agent] [--project]` | 配置 MCP Server for AI Agents |
 | `nexo doctor` | 检查 MCP Server 配置 |
 | `nexo serve` | 启动 MCP Server（for AI agent integration） |
+| `nexo ui` | 启动本地 Web 界面（Next.js 仪表盘） |
 | `nexo migrate` | 迁移现有 .md 笔记到 SQLite 数据库 |
 | `nexo create <title> -c <cat> [-t tags] [-s url]` | 创建笔记 |
 | `nexo edit <id> [-e editor]` | 编辑笔记 |
 | `nexo view <id>` | 查看笔记 |
 | `nexo ls [-c] [-t] [-s] [--limit]` | 列出笔记 |
 | `nexo search <keyword> [-t tags]` | 搜索笔记 |
+| `nexo thread <id>` | 查看某条笔记的完整笔记链 |
 | `nexo archive <id>` | 归档笔记 |
 | `nexo rm <id> [-f]` | 删除/归档笔记 |
 | `nexo tag ls` | 列出标签 |
