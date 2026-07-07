@@ -197,6 +197,42 @@ impl Database {
         Ok(())
     }
 
+    /// Set (or clear with `None`) the parent_id of a note, establishing or
+    /// removing a chain link.
+    pub fn set_parent_id(&self, id: &str, parent_id: Option<&str>) -> Result<()> {
+        self.conn.execute(
+            "UPDATE notes SET parent_id = ?1 WHERE id = ?2",
+            params![parent_id, id],
+        )?;
+        Ok(())
+    }
+
+    /// Find a journal note ID by its date prefix (e.g. "journal-20260707").
+    pub fn journal_id_for_prefix(&self, prefix: &str) -> Result<Option<String>> {
+        let id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT id FROM notes WHERE id LIKE ?1 AND category = 'journal' LIMIT 1",
+                params![format!("{}%", prefix)],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(id)
+    }
+
+    /// List notes that have no parent link (orphaned) and are not journals.
+    pub fn list_orphans(&self) -> Result<Vec<Note>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, category, status, content, source_url, file_path, parent_id, created_at, updated_at
+             FROM notes WHERE (parent_id IS NULL OR parent_id = '') AND category != 'journal'
+             ORDER BY created_at ASC",
+        )?;
+        let notes = stmt
+            .query_map([], Self::row_to_note)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(notes)
+    }
+
     // ──────────────────────────────────────
     // ID Generation
     // ──────────────────────────────────────
@@ -448,17 +484,8 @@ impl Database {
 
     /// Get today's journal note ID, if one exists.
     pub fn today_journal_id(&self) -> Result<Option<String>> {
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        let prefix = format!("journal-{}", today.replace('-', ""));
-        let id: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT id FROM notes WHERE id LIKE ?1 AND category = 'journal' LIMIT 1",
-                params![format!("{}%", prefix)],
-                |row| row.get(0),
-            )
-            .optional()?;
-        Ok(id)
+        let prefix = format!("journal-{}", Local::now().format("%Y%m%d"));
+        self.journal_id_for_prefix(&prefix)
     }
 
     /// Total number of notes in the database.

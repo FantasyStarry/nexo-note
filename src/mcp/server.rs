@@ -112,6 +112,14 @@ pub struct NoteIdParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct LinkNoteParams {
+    /// Note ID to link
+    pub id: String,
+    /// Parent note ID to link under (optional; defaults to the note's own-date journal)
+    pub parent_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct RenameTagParams {
     /// Old tag name
     pub old: String,
@@ -272,6 +280,36 @@ impl NexoServer {
         }
     }
 
+    #[tool(
+        description = "Link a note into a chain by setting its parent. \
+        Provide parent_id to attach it under a specific note, or omit it to link the note \
+        to the journal of its own creation date. Returns the resulting parent_id."
+    )]
+    fn link_note(&self, Parameters(params): Parameters<LinkNoteParams>) -> String {
+        let repo = self.repo.lock().unwrap_or_else(|e| e.into_inner());
+        let note = match repo.find_note(&params.id) {
+            Ok(Some(n)) => n,
+            Ok(None) => return err(format!("note '{}' not found", params.id)),
+            Err(e) => return err(e),
+        };
+        let parent_id = if let Some(pid) = &params.parent_id {
+            if !repo.database().note_exists(pid).unwrap_or(false) {
+                return err(format!("parent note '{}' not found", pid));
+            }
+            pid.clone()
+        } else {
+            let date = note.frontmatter.created_at.date_naive();
+            match repo.ensure_journal_for_date(date) {
+                Ok(id) => id,
+                Err(e) => return err(e),
+            }
+        };
+        match repo.set_parent(&params.id, Some(&parent_id)) {
+            Ok(()) => ok(&serde_json::json!({ "id": params.id, "parent_id": parent_id })),
+            Err(e) => err(e),
+        }
+    }
+
     #[tool(description = "List all unique tags across all notes.")]
     fn list_tags(&self) -> String {
         let repo = self.repo.lock().unwrap_or_else(|e| e.into_inner());
@@ -350,7 +388,8 @@ impl ServerHandler for NexoServer {
                 "nexo-note: A local markdown-based notes knowledge base. \
                 Use list_notes to browse, search_notes to find by keyword, \
                 get_note to read full content, create_note to add new notes, \
-                get_thread to view the full thread chain for a note."
+                get_thread to view the full thread chain for a note, \
+                link_note to attach a note under a parent (or its date journal)."
                     .into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),

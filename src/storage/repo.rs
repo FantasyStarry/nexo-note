@@ -478,6 +478,47 @@ impl Repo {
         Ok(note.frontmatter.id)
     }
 
+    /// Get or create the journal note for a specific date.
+    pub fn ensure_journal_for_date(&self, date: chrono::NaiveDate) -> Result<String> {
+        let prefix = format!("journal-{}", date.format("%Y%m%d"));
+        if let Some(id) = self.db.journal_id_for_prefix(&prefix)? {
+            return Ok(id);
+        }
+        let title = format!("{} 日志", date.format("%Y-%m-%d"));
+        let note = self.create_note(&title, "journal", Vec::new(), None, None, HashMap::new())?;
+        Ok(note.frontmatter.id)
+    }
+
+    /// Set or clear the parent of a note (establishing or removing a chain link).
+    /// Validates that the parent exists when `parent_id` is `Some`.
+    pub fn set_parent(&self, id: &str, parent_id: Option<&str>) -> Result<()> {
+        if let Some(pid) = parent_id {
+            if !self.db.note_exists(pid)? {
+                return Err(anyhow!("parent note '{}' not found", pid));
+            }
+        }
+        self.db.set_parent_id(id, parent_id)
+    }
+
+    /// Link all orphaned (parent-less) non-journal notes to the journal of their
+    /// own creation date, creating that journal if needed. Returns the number of
+    /// notes linked. When `dry_run` is true, no changes are written.
+    pub fn relink_orphans(&self, dry_run: bool) -> Result<usize> {
+        let orphans = self.db.list_orphans()?;
+        let mut count = 0;
+        for note in orphans {
+            if dry_run {
+                count += 1;
+                continue;
+            }
+            let date = note.frontmatter.created_at.date_naive();
+            let journal_id = self.ensure_journal_for_date(date)?;
+            self.db.set_parent_id(&note.frontmatter.id, Some(&journal_id))?;
+            count += 1;
+        }
+        Ok(count)
+    }
+
     // ──────────────────────────────────────
     // Tags
     // ──────────────────────────────────────

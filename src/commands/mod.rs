@@ -6,6 +6,7 @@ pub mod delete;
 pub mod edit;
 pub mod init;
 pub mod init_mcp;
+pub mod link;
 pub mod list;
 pub mod migrate;
 pub mod search;
@@ -93,6 +94,8 @@ pub fn run(cli: Cli) -> Result<()> {
         Commands::InitMcp(ref args) => init_mcp::run(args),
         Commands::Doctor => init_mcp::doctor(),
         Commands::Thread { ref id } => thread::run(&cli, id),
+        Commands::Link { ref id, ref parent } => link::run_link(&cli, id, parent.clone()),
+        Commands::Relink => link::run_relink(&cli),
         Commands::Ui => ui::run(&cli),
     }
 }

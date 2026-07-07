@@ -169,6 +169,19 @@ pub enum Commands {
         id: String,
     },
 
+    /// Link a note into a chain by setting its parent
+    Link {
+        /// Note ID to link
+        id: String,
+
+        /// Parent note ID to link under (optional; defaults to the note's own-date journal)
+        #[arg(long)]
+        parent: Option<String>,
+    },
+
+    /// Link all orphaned (parent-less) notes to their creation-date journal
+    Relink,
+
     /// Start the web UI dashboard
     Ui,
 }

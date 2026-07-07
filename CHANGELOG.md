@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2] - 2026-07-07 (unreleased)
 
+### Added
+- 新增 `nexo link <id> [--parent <pid>]`：将已有笔记挂接到链中（设置 `parent_id`）；不传 `--parent` 时自动关联到该笔记创建日期的日志
+- 新增 `nexo relink`：批量把数据库中所有「无父节点」的非 journal 笔记关联到其创建日期的日志，解决了早期通过旧 MCP / PowerShell 写入、未自动关联的孤立笔记；支持 `--dry-run` 预览
+- MCP 新增 `link_note` 工具，与 CLI `link` 行为一致，便于 AI 助手在创建后补关联
+
 ### Fixed
 - 修复 MCP `create_note` 创建笔记后笔记链为空的问题：此前 MCP 创建的非 journal 笔记未像 CLI 那样自动挂接到「当日日志」作为父节点，导致 `get_thread` 只返回单条笔记、Web UI 显示「暂无笔记链」。现已与 CLI 行为对齐，未显式指定 `parent_id` 时自动关联当日日志
 - 修复 `nexo init-mcp` 生成的 MCP 配置依赖 `nexo` 在 PATH 中（本地 npm 安装时往往不满足），改为写入 nexo 二进制绝对路径，确保 AI 助手开箱即可启动 MCP Server
