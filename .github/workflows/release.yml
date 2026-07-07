@@ -71,11 +71,16 @@ jobs:
           mv artifacts/nexo-macos-x86_64/nexo release-assets/nexo-macos-x86_64
           mv artifacts/nexo-macos-aarch64/nexo release-assets/nexo-macos-aarch64
 
+      - name: Extract release notes from CHANGELOG
+        run: |
+          awk '/^## \[/{c++} c==1{print} c>1{exit}' CHANGELOG.md > release-body.md
+          cat release-body.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
-          generate_release_notes: true
+          body_path: release-body.md
 
   publish-npm:
     name: Publish npm wrapper
